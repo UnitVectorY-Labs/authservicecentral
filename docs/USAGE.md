@@ -81,6 +81,7 @@ Issues JWT access tokens using the OAuth 2.0 token endpoint (RFC 6749).
 **Supported grant types:**
 
 - `client_credentials` — authenticate using a client ID and secret
+- `urn:ietf:params:oauth:grant-type:jwt-bearer` — authenticate using an external JWT assertion (workload identity)
 
 ##### Client Credentials Grant
 
@@ -103,6 +104,32 @@ curl -X POST "http://localhost:8080/v1/token" \
   --data-urlencode "audience=service-b" \
   --data-urlencode "scope=read write"
 ```
+
+##### JWT Bearer Grant
+
+Authenticate using an external JWT assertion for workload identity federation.
+
+| Parameter | Required | Description |
+|---|---|---|
+| `grant_type` | yes | Must be `urn:ietf:params:oauth:grant-type:jwt-bearer` |
+| `client_id` | yes | Subject identifier of the application (application subject, not credential client_id) |
+| `assertion` | yes | External JWT token from the identity provider |
+| `audience` | yes | Subject identifier of the target (audience) application |
+| `scope` | no | Space-delimited list of requested scopes |
+
+**Example:**
+
+```bash
+curl -X POST "http://localhost:8080/v1/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --data-urlencode "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer" \
+  --data-urlencode "client_id=service-a" \
+  --data-urlencode "assertion=eyJhbGciOi..." \
+  --data-urlencode "audience=service-b" \
+  --data-urlencode "scope=read"
+```
+
+The assertion JWT is validated against workload selectors linked to the application. The assertion's issuer must match a configured identity provider, and the JWT claims must satisfy the workload selector constraints.
 
 **Success Response (200):**
 
@@ -132,7 +159,7 @@ Errors follow RFC 6749 format:
 |---|---|
 | `invalid_request` | Missing or invalid parameters (including missing `audience`) |
 | `invalid_client` | Client authentication failed, credential disabled, or application locked |
-| `invalid_grant` | Invalid assertion (JWT bearer grant, not yet supported) |
+| `invalid_grant` | Invalid assertion JWT, workload mismatch, or signature verification failure |
 | `access_denied` | No authorization exists or authorization is disabled |
 | `invalid_scope` | Requested scope is not allowed for the subject-audience pair |
 
@@ -159,6 +186,34 @@ When the control plane is enabled (`--control-plane-enabled=true`, the default),
 | `GET /admin/logout` | Logout (clears session) |
 | `GET /admin/` | Admin dashboard home page |
 | `GET /admin/apps` | Applications list with search and pagination |
+| `GET /admin/apps/new` | New application form |
+| `POST /admin/apps/new` | Create application |
+| `GET /admin/apps/{subject}` | Application detail page with tabs (overview, scopes, credentials, authorizations) |
+| `POST /admin/apps/{subject}` | Update application |
+| `POST /admin/apps/{subject}/scopes` | Add a scope to an application |
+| `POST /admin/apps/{subject}/scopes/delete` | Remove a scope from an application |
+| `POST /admin/apps/{subject}/credentials` | Create a client credential (max 2 active per app) |
+| `POST /admin/apps/{subject}/credentials/disable` | Disable a client credential |
+| `GET /admin/apps/{subject}/authorizations/new` | New outbound authorization form |
+| `POST /admin/apps/{subject}/authorizations/new` | Create outbound authorization |
+| `GET /admin/apps/{subject}/authorizations/{audience}` | Authorization detail page |
+| `POST /admin/apps/{subject}/authorizations/{audience}` | Update authorization (enable/disable) |
+| `POST /admin/apps/{subject}/authorizations/{audience}/delete` | Delete authorization |
+| `POST /admin/apps/{subject}/authorizations/{audience}/scopes` | Add scope to authorization |
+| `POST /admin/apps/{subject}/authorizations/{audience}/scopes/delete` | Remove scope from authorization |
+| `GET /admin/providers` | Identity providers list |
+| `GET /admin/providers/new` | New identity provider form |
+| `POST /admin/providers/new` | Create identity provider |
+| `GET /admin/providers/{id}` | Identity provider detail page |
+| `POST /admin/providers/{id}` | Update identity provider |
+| `POST /admin/providers/{id}/delete` | Delete identity provider |
+| `GET /admin/providers/{id}/workloads/new` | New workload form |
+| `POST /admin/providers/{id}/workloads/new` | Create workload |
+| `GET /admin/providers/{id}/workloads/{workloadID}` | Workload detail page |
+| `POST /admin/providers/{id}/workloads/{workloadID}` | Update workload |
+| `POST /admin/providers/{id}/workloads/{workloadID}/delete` | Delete workload |
+| `POST /admin/providers/{id}/workloads/{workloadID}/link` | Link application to workload |
+| `POST /admin/providers/{id}/workloads/{workloadID}/unlink` | Unlink application from workload |
 
 #### Authentication
 
