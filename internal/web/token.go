@@ -44,6 +44,10 @@ func (s *Server) handleClientCredentialsGrant(w http.ResponseWriter, r *http.Req
 		writeOAuthError(w, http.StatusBadRequest, errInvalidRequest, "client_secret is required")
 		return
 	}
+	if len(clientSecret) > 1024 {
+		writeOAuthError(w, http.StatusBadRequest, errInvalidRequest, "client_secret exceeds maximum length")
+		return
+	}
 	if audience == "" {
 		writeOAuthError(w, http.StatusBadRequest, errInvalidRequest, "audience is required")
 		return
@@ -138,7 +142,7 @@ func (s *Server) handleClientCredentialsGrant(w http.ResponseWriter, r *http.Req
 
 		for _, sc := range requestedScopes {
 			if !allowedSet[sc] {
-				writeOAuthError(w, http.StatusBadRequest, errInvalidScope, "scope '"+sc+"' is not allowed")
+				writeOAuthError(w, http.StatusBadRequest, errInvalidScope, "requested scope is not allowed")
 				return
 			}
 		}
