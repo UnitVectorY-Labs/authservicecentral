@@ -4,13 +4,7 @@ This document represents the remaining design work for `authservicecentral`. As 
 
 ## Remaining Work
 
-### Audit Logging
-
-Control plane and data plane audit logging is defined in the database schema but not yet implemented in the application code.
-
-**Control Plane Audit** (`control_plane_audit` table): Records administrative actions such as creating/updating applications, authorizations, identity providers, and workloads. Each entry captures the actor, action, target, and before/after state.
-
-**Data Plane Audit** (`data_plane_audit` table): Records token issuance decisions including the subject application, audience application, requested scopes, decision (allow/deny), and reason.
+No remaining work is currently tracked in this document.
 
 # Progress and Next Steps
 
@@ -46,4 +40,4 @@ Control plane and data plane audit logging is defined in the database schema but
 
 ## Next Steps
 
-1. **Audit logging**: Implement control plane and data plane audit trail recording
+Continue iterative hardening, validation, and UX polish as implementation feedback is received.

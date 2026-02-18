@@ -48,6 +48,11 @@ The database schema includes the following tables:
 | `control_plane_audit` | Audit log for administrative actions |
 | `data_plane_audit` | Audit log for token issuance decisions |
 
+## Audit Logging
+
+- `control_plane_audit` is written by control-plane admin handlers when applications, authorizations, identity providers, or workloads are created, updated, or deleted.
+- `data_plane_audit` is written by `/v1/token` grant handlers for both allowed and denied token issuance decisions.
+
 ## Credential Hashing
 
 `application_credentials.secret_hash` and `users.password_hash` store hashes in this format:

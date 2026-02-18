@@ -268,7 +268,7 @@ func (s *Server) handleAppsList(w http.ResponseWriter, r *http.Request) {
 
 	data := appsListData{
 		pageData:   newPageData(r, "apps"),
-		Apps:        apps,
+		Apps:       apps,
 		Search:     search,
 		Page:       page,
 		TotalPages: totalPages,
@@ -335,7 +335,7 @@ func (s *Server) handleAppsCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	_, err := database.CreateApplication(ctx, s.db, subject, description, appType)
+	app, err := database.CreateApplication(ctx, s.db, subject, description, appType)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "unique") {
 			renderError("An application with that subject already exists.")
@@ -345,6 +345,21 @@ func (s *Server) handleAppsCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	s.recordControlPlaneAudit(
+		r,
+		"create",
+		"application",
+		map[string]interface{}{"id": app.ID, "subject": app.Subject},
+		nil,
+		map[string]interface{}{
+			"id":          app.ID,
+			"subject":     app.Subject,
+			"description": description,
+			"app_type":    app.AppType,
+			"locked":      app.Locked,
+		},
+		nil,
+	)
 
 	http.Redirect(w, r, "/admin/apps/"+subject, http.StatusSeeOther)
 }
@@ -464,6 +479,15 @@ func (s *Server) handleAppUpdate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	s.recordControlPlaneAudit(
+		r,
+		"update",
+		"application",
+		map[string]interface{}{"id": app.ID, "subject": app.Subject},
+		map[string]interface{}{"description": app.Description.String, "locked": app.Locked},
+		map[string]interface{}{"description": description, "locked": locked},
+		nil,
+	)
 
 	http.Redirect(w, r, "/admin/apps/"+subject+"?tab=overview", http.StatusSeeOther)
 }

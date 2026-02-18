@@ -75,6 +75,7 @@ When the data plane is enabled (`--data-plane-enabled=true`, the default), the f
 #### `POST /v1/token`
 
 Issues JWT access tokens using the OAuth 2.0 token endpoint (RFC 6749).
+Each token request also records a `data_plane_audit` entry with allow/deny decision details.
 
 **Content-Type:** `application/x-www-form-urlencoded`
 
@@ -214,6 +215,8 @@ When the control plane is enabled (`--control-plane-enabled=true`, the default),
 | `POST /admin/providers/{id}/workloads/{workloadID}/delete` | Delete workload |
 | `POST /admin/providers/{id}/workloads/{workloadID}/link` | Link application to workload |
 | `POST /admin/providers/{id}/workloads/{workloadID}/unlink` | Unlink application from workload |
+
+Administrative create/update/delete actions for applications, authorizations, identity providers, and workloads are recorded in `control_plane_audit`.
 
 #### Authentication
 

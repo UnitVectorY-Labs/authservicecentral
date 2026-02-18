@@ -283,6 +283,114 @@ func UpdateUserLastLogin(ctx context.Context, db *sql.DB, userID int64) error {
 	return nil
 }
 
+// CreateControlPlaneAuditLog inserts a control-plane audit event.
+func CreateControlPlaneAuditLog(
+	ctx context.Context,
+	db *sql.DB,
+	actorType, actorID, actorIP, actorUserAgent, action, targetType string,
+	targetPK, before, after, metadata interface{},
+) error {
+	if targetPK == nil {
+		targetPK = map[string]interface{}{}
+	}
+
+	targetPKJSON, err := json.Marshal(targetPK)
+	if err != nil {
+		return fmt.Errorf("marshal target pk: %w", err)
+	}
+	beforeJSON, err := marshalOptionalJSON(before)
+	if err != nil {
+		return fmt.Errorf("marshal before: %w", err)
+	}
+	afterJSON, err := marshalOptionalJSON(after)
+	if err != nil {
+		return fmt.Errorf("marshal after: %w", err)
+	}
+	metadataJSON, err := marshalOptionalJSON(metadata)
+	if err != nil {
+		return fmt.Errorf("marshal metadata: %w", err)
+	}
+
+	_, err = db.ExecContext(ctx,
+		`INSERT INTO control_plane_audit (
+		 actor_type, actor_id, actor_ip, actor_user_agent, action, target_type, target_pk, before, after, metadata
+		 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		actorType,
+		nullableString(actorID),
+		nullableString(actorIP),
+		nullableString(actorUserAgent),
+		action,
+		targetType,
+		targetPKJSON,
+		beforeJSON,
+		afterJSON,
+		metadataJSON,
+	)
+	if err != nil {
+		return fmt.Errorf("create control plane audit log: %w", err)
+	}
+	return nil
+}
+
+// CreateDataPlaneAuditLog inserts a data-plane audit event.
+func CreateDataPlaneAuditLog(
+	ctx context.Context,
+	db *sql.DB,
+	subjectApplicationID, audienceApplicationID *int64,
+	scopes []string,
+	decision, reason, requestID string,
+	details interface{},
+) error {
+	detailsJSON, err := marshalOptionalJSON(details)
+	if err != nil {
+		return fmt.Errorf("marshal details: %w", err)
+	}
+
+	var subjectIDValue interface{}
+	if subjectApplicationID != nil {
+		subjectIDValue = *subjectApplicationID
+	}
+	var audienceIDValue interface{}
+	if audienceApplicationID != nil {
+		audienceIDValue = *audienceApplicationID
+	}
+	var scopesValue interface{}
+	if len(scopes) > 0 {
+		scopesValue = scopes
+	}
+
+	_, err = db.ExecContext(ctx,
+		`INSERT INTO data_plane_audit (
+		 subject_application_id, audience_application_id, scopes, decision, reason, request_id, details
+		 ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		subjectIDValue,
+		audienceIDValue,
+		scopesValue,
+		decision,
+		nullableString(reason),
+		nullableString(requestID),
+		detailsJSON,
+	)
+	if err != nil {
+		return fmt.Errorf("create data plane audit log: %w", err)
+	}
+	return nil
+}
+
+func marshalOptionalJSON(v interface{}) ([]byte, error) {
+	if v == nil {
+		return nil, nil
+	}
+	return json.Marshal(v)
+}
+
+func nullableString(v string) interface{} {
+	if v == "" {
+		return nil
+	}
+	return v
+}
+
 // ApplicationListItem represents an application in a list view
 type ApplicationListItem struct {
 	ID          int64

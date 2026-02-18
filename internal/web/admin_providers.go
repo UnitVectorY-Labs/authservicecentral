@@ -155,6 +155,15 @@ func (s *Server) handleProviderCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	s.recordControlPlaneAudit(
+		r,
+		"create",
+		"identity_provider",
+		map[string]interface{}{"id": provider.ID},
+		nil,
+		map[string]interface{}{"id": provider.ID, "name": provider.Name, "issuer_url": provider.IssuerURL, "jwks_url": provider.JWKSURL.String},
+		nil,
+	)
 
 	http.Redirect(w, r, fmt.Sprintf("/admin/providers/%d", provider.ID), http.StatusSeeOther)
 }
@@ -235,6 +244,15 @@ func (s *Server) handleProviderUpdate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	s.recordControlPlaneAudit(
+		r,
+		"update",
+		"identity_provider",
+		map[string]interface{}{"id": provider.ID},
+		map[string]interface{}{"name": provider.Name, "issuer_url": provider.IssuerURL, "jwks_url": provider.JWKSURL.String},
+		map[string]interface{}{"name": name, "issuer_url": issuerURL, "jwks_url": jwksURL},
+		nil,
+	)
 
 	http.Redirect(w, r, fmt.Sprintf("/admin/providers/%d", id), http.StatusSeeOther)
 }
@@ -258,6 +276,15 @@ func (s *Server) handleProviderDelete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	s.recordControlPlaneAudit(
+		r,
+		"delete",
+		"identity_provider",
+		map[string]interface{}{"id": provider.ID},
+		map[string]interface{}{"name": provider.Name, "issuer_url": provider.IssuerURL, "jwks_url": provider.JWKSURL.String},
+		nil,
+		nil,
+	)
 
 	http.Redirect(w, r, "/admin/providers", http.StatusSeeOther)
 }
@@ -349,6 +376,15 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	s.recordControlPlaneAudit(
+		r,
+		"create",
+		"workload",
+		map[string]interface{}{"id": workload.ID},
+		nil,
+		map[string]interface{}{"id": workload.ID, "identity_provider_id": workload.IdentityProviderID, "name": workload.Name, "selector": selectorStr},
+		nil,
+	)
 
 	http.Redirect(w, r, fmt.Sprintf("/admin/providers/%d/workloads/%d", provider.ID, workload.ID), http.StatusSeeOther)
 }
@@ -497,6 +533,15 @@ func (s *Server) handleWorkloadUpdate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	s.recordControlPlaneAudit(
+		r,
+		"update",
+		"workload",
+		map[string]interface{}{"id": workload.ID},
+		map[string]interface{}{"name": workload.Name, "selector": string(workload.Selector)},
+		map[string]interface{}{"name": name, "selector": selectorStr},
+		nil,
+	)
 
 	http.Redirect(w, r, fmt.Sprintf("/admin/providers/%d/workloads/%d", providerID, workloadID), http.StatusSeeOther)
 }
@@ -525,6 +570,15 @@ func (s *Server) handleWorkloadDelete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	s.recordControlPlaneAudit(
+		r,
+		"delete",
+		"workload",
+		map[string]interface{}{"id": workload.ID},
+		map[string]interface{}{"identity_provider_id": workload.IdentityProviderID, "name": workload.Name, "selector": string(workload.Selector)},
+		nil,
+		nil,
+	)
 
 	http.Redirect(w, r, fmt.Sprintf("/admin/providers/%d", providerID), http.StatusSeeOther)
 }
