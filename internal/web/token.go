@@ -34,21 +34,35 @@ func (s *Server) handleClientCredentialsGrant(w http.ResponseWriter, r *http.Req
 	clientSecret := r.FormValue("client_secret")
 	audience := r.FormValue("audience")
 	scopeParam := r.FormValue("scope")
+	requestedScopes := strings.Fields(scopeParam)
+	decision := "deny"
+	reason := "invalid request"
+	var subjectApplicationID *int64
+	var audienceApplicationID *int64
+	defer s.recordDataPlaneAudit(r, subjectApplicationID, audienceApplicationID, requestedScopes, decision, reason, map[string]interface{}{
+		"grant_type": "client_credentials",
+		"client_id":  clientID,
+		"audience":   audience,
+	})
 
 	// Validate required parameters
 	if clientID == "" {
+		reason = "client_id is required"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidRequest, "client_id is required")
 		return
 	}
 	if clientSecret == "" {
+		reason = "client_secret is required"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidRequest, "client_secret is required")
 		return
 	}
 	if len(clientSecret) > 1024 {
+		reason = "client_secret exceeds maximum length"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidRequest, "client_secret exceeds maximum length")
 		return
 	}
 	if audience == "" {
+		reason = "audience is required"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidRequest, "audience is required")
 		return
 	}
@@ -58,23 +72,28 @@ func (s *Server) handleClientCredentialsGrant(w http.ResponseWriter, r *http.Req
 	// Look up the credential by client_id
 	cred, err := database.LookupCredentialByClientID(ctx, s.db, clientID)
 	if err != nil {
+		reason = "credential lookup failed"
 		log.Printf("error looking up credential: %v", err)
 		writeOAuthError(w, http.StatusInternalServerError, errInvalidClient, "internal error")
 		return
 	}
 	if cred == nil {
+		reason = "invalid client credentials"
 		writeOAuthError(w, http.StatusUnauthorized, errInvalidClient, "invalid client credentials")
 		return
 	}
+	subjectApplicationID = int64Ptr(cred.ApplicationID)
 
 	// Check if credential is disabled
 	if cred.DisabledAt.Valid {
+		reason = "client credential is disabled"
 		writeOAuthError(w, http.StatusUnauthorized, errInvalidClient, "client credential is disabled")
 		return
 	}
 
 	// Verify the client secret
 	if !credential.VerifySecret(clientSecret, cred.SecretHash) {
+		reason = "invalid client credentials"
 		writeOAuthError(w, http.StatusUnauthorized, errInvalidClient, "invalid client credentials")
 		return
 	}
@@ -82,43 +101,53 @@ func (s *Server) handleClientCredentialsGrant(w http.ResponseWriter, r *http.Req
 	// Look up the subject application
 	subjectApp, err := database.LookupApplicationByID(ctx, s.db, cred.ApplicationID)
 	if err != nil {
+		reason = "subject application lookup failed"
 		log.Printf("error looking up subject application: %v", err)
 		writeOAuthError(w, http.StatusInternalServerError, errInvalidClient, "internal error")
 		return
 	}
 	if subjectApp == nil || subjectApp.Locked {
+		reason = "subject application is unavailable"
 		writeOAuthError(w, http.StatusUnauthorized, errInvalidClient, "subject application is unavailable")
 		return
 	}
+	subjectApplicationID = int64Ptr(subjectApp.ID)
 
 	// Look up the audience application
 	audienceApp, err := database.LookupApplicationBySubject(ctx, s.db, audience)
 	if err != nil {
+		reason = "audience application lookup failed"
 		log.Printf("error looking up audience application: %v", err)
 		writeOAuthError(w, http.StatusInternalServerError, errInvalidRequest, "internal error")
 		return
 	}
 	if audienceApp == nil {
+		reason = "unknown audience"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidRequest, "unknown audience")
 		return
 	}
 	if audienceApp.Locked {
+		reason = "audience application is locked"
 		writeOAuthError(w, http.StatusForbidden, errAccessDenied, "audience application is locked")
 		return
 	}
+	audienceApplicationID = int64Ptr(audienceApp.ID)
 
 	// Check authorization
 	auth, err := database.LookupAuthorization(ctx, s.db, subjectApp.ID, audienceApp.ID)
 	if err != nil {
+		reason = "authorization lookup failed"
 		log.Printf("error looking up authorization: %v", err)
 		writeOAuthError(w, http.StatusInternalServerError, errAccessDenied, "internal error")
 		return
 	}
 	if auth == nil {
+		reason = "no authorization exists for this subject and audience"
 		writeOAuthError(w, http.StatusForbidden, errAccessDenied, "no authorization exists for this subject and audience")
 		return
 	}
 	if !auth.Enabled {
+		reason = "authorization is disabled"
 		writeOAuthError(w, http.StatusForbidden, errAccessDenied, "authorization is disabled")
 		return
 	}
@@ -130,6 +159,7 @@ func (s *Server) handleClientCredentialsGrant(w http.ResponseWriter, r *http.Req
 
 		allowedScopes, err := database.LookupAuthorizedScopes(ctx, s.db, subjectApp.ID, audienceApp.ID)
 		if err != nil {
+			reason = "scope lookup failed"
 			log.Printf("error looking up scopes: %v", err)
 			writeOAuthError(w, http.StatusInternalServerError, errInvalidScope, "internal error")
 			return
@@ -142,6 +172,7 @@ func (s *Server) handleClientCredentialsGrant(w http.ResponseWriter, r *http.Req
 
 		for _, sc := range requestedScopes {
 			if !allowedSet[sc] {
+				reason = "requested scope is not allowed"
 				writeOAuthError(w, http.StatusBadRequest, errInvalidScope, "requested scope is not allowed")
 				return
 			}
@@ -159,6 +190,7 @@ func (s *Server) handleClientCredentialsGrant(w http.ResponseWriter, r *http.Req
 		s.cfg.JWTTTL,
 	)
 	if err != nil {
+		reason = "claim creation failed"
 		log.Printf("error creating claims: %v", err)
 		writeOAuthError(w, http.StatusInternalServerError, errInvalidRequest, "internal error")
 		return
@@ -166,6 +198,7 @@ func (s *Server) handleClientCredentialsGrant(w http.ResponseWriter, r *http.Req
 
 	token, err := s.keyStore.SignToken(claims)
 	if err != nil {
+		reason = "token signing failed"
 		log.Printf("error signing token: %v", err)
 		writeOAuthError(w, http.StatusInternalServerError, errInvalidRequest, "internal error")
 		return
@@ -181,5 +214,7 @@ func (s *Server) handleClientCredentialsGrant(w http.ResponseWriter, r *http.Req
 		response["scope"] = grantedScopes
 	}
 
+	decision = "allow"
+	reason = "token issued"
 	writeJSON(w, http.StatusOK, response)
 }

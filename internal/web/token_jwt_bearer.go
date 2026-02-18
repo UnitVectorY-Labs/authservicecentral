@@ -28,17 +28,30 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 	assertion := r.FormValue("assertion")
 	audience := r.FormValue("audience")
 	scopeParam := r.FormValue("scope")
+	requestedScopes := strings.Fields(scopeParam)
+	decision := "deny"
+	reason := "invalid request"
+	var subjectApplicationID *int64
+	var audienceApplicationID *int64
+	defer s.recordDataPlaneAudit(r, subjectApplicationID, audienceApplicationID, requestedScopes, decision, reason, map[string]interface{}{
+		"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+		"client_id":  clientID,
+		"audience":   audience,
+	})
 
 	// Validate required parameters
 	if clientID == "" {
+		reason = "client_id is required"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidRequest, "client_id is required")
 		return
 	}
 	if assertion == "" {
+		reason = "assertion is required"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidRequest, "assertion is required")
 		return
 	}
 	if audience == "" {
+		reason = "audience is required"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidRequest, "audience is required")
 		return
 	}
@@ -48,47 +61,58 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 	// Look up the subject application by client_id (which is the application subject)
 	subjectApp, err := database.LookupApplicationBySubject(ctx, s.db, clientID)
 	if err != nil {
+		reason = "subject application lookup failed"
 		log.Printf("error looking up subject application: %v", err)
 		writeOAuthError(w, http.StatusInternalServerError, errInvalidClient, "internal error")
 		return
 	}
 	if subjectApp == nil {
+		reason = "unknown client_id"
 		writeOAuthError(w, http.StatusUnauthorized, errInvalidClient, "unknown client_id")
 		return
 	}
 	if subjectApp.Locked {
+		reason = "subject application is locked"
 		writeOAuthError(w, http.StatusUnauthorized, errInvalidClient, "subject application is locked")
 		return
 	}
+	subjectApplicationID = int64Ptr(subjectApp.ID)
 
 	// Look up the audience application
 	audienceApp, err := database.LookupApplicationBySubject(ctx, s.db, audience)
 	if err != nil {
+		reason = "audience application lookup failed"
 		log.Printf("error looking up audience application: %v", err)
 		writeOAuthError(w, http.StatusInternalServerError, errInvalidRequest, "internal error")
 		return
 	}
 	if audienceApp == nil {
+		reason = "unknown audience"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidRequest, "unknown audience")
 		return
 	}
 	if audienceApp.Locked {
+		reason = "audience application is locked"
 		writeOAuthError(w, http.StatusForbidden, errAccessDenied, "audience application is locked")
 		return
 	}
+	audienceApplicationID = int64Ptr(audienceApp.ID)
 
 	// Check authorization
 	auth, err := database.LookupAuthorization(ctx, s.db, subjectApp.ID, audienceApp.ID)
 	if err != nil {
+		reason = "authorization lookup failed"
 		log.Printf("error looking up authorization: %v", err)
 		writeOAuthError(w, http.StatusInternalServerError, errAccessDenied, "internal error")
 		return
 	}
 	if auth == nil {
+		reason = "no authorization exists for this subject and audience"
 		writeOAuthError(w, http.StatusForbidden, errAccessDenied, "no authorization exists for this subject and audience")
 		return
 	}
 	if !auth.Enabled {
+		reason = "authorization is disabled"
 		writeOAuthError(w, http.StatusForbidden, errAccessDenied, "authorization is disabled")
 		return
 	}
@@ -96,11 +120,13 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 	// Get workloads linked to the subject application
 	workloads, err := database.LookupWorkloadsForApplication(ctx, s.db, subjectApp.ID)
 	if err != nil {
+		reason = "workload lookup failed"
 		log.Printf("error looking up workloads: %v", err)
 		writeOAuthError(w, http.StatusInternalServerError, errInvalidGrant, "internal error")
 		return
 	}
 	if len(workloads) == 0 {
+		reason = "no workloads configured for this application"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidGrant, "no workloads configured for this application")
 		return
 	}
@@ -108,6 +134,7 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 	// Parse the assertion JWT without verifying signature
 	header, claims, parts, err := parseJWTWithoutVerification(assertion)
 	if err != nil {
+		reason = "invalid assertion JWT"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidGrant, "invalid assertion JWT")
 		return
 	}
@@ -115,6 +142,7 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 	// Extract claims
 	issuer, _ := claims["iss"].(string)
 	if issuer == "" {
+		reason = "assertion missing iss claim"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidGrant, "assertion missing iss claim")
 		return
 	}
@@ -129,6 +157,7 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 			expTime, _ = v.Float64()
 		}
 		if time.Now().Unix() > int64(expTime) {
+			reason = "assertion has expired"
 			writeOAuthError(w, http.StatusBadRequest, errInvalidGrant, "assertion has expired")
 			return
 		}
@@ -146,12 +175,14 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if matchedWorkload == nil {
+		reason = "no workload matches the assertion issuer"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidGrant, "no workload matches the assertion issuer")
 		return
 	}
 
 	// Verify the workload's provider has a JWKS URL
 	if !matchedWorkload.JWKSURL.Valid || matchedWorkload.JWKSURL.String == "" {
+		reason = "identity provider has no JWKS URL configured"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidGrant, "identity provider has no JWKS URL configured")
 		return
 	}
@@ -159,16 +190,19 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 	// Fetch the JWK and verify signature
 	jwkData, err := s.fetchJWKS(ctx, matchedWorkload.JWKSURL.String, kid)
 	if err != nil {
+		reason = "unable to fetch signing key"
 		log.Printf("error fetching JWKS: %v", err)
 		writeOAuthError(w, http.StatusBadRequest, errInvalidGrant, "unable to fetch signing key")
 		return
 	}
 	if jwkData == nil {
+		reason = "signing key not found"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidGrant, "signing key not found")
 		return
 	}
 
 	if err := verifyJWTSignature(parts, jwkData); err != nil {
+		reason = "assertion signature verification failed"
 		log.Printf("JWT signature verification failed: %v", err)
 		writeOAuthError(w, http.StatusBadRequest, errInvalidGrant, "assertion signature verification failed")
 		return
@@ -176,6 +210,7 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 
 	// Verify selector claims match
 	if !matchSelector(claims, matchedWorkload.Selector) {
+		reason = "assertion claims do not match workload selector"
 		writeOAuthError(w, http.StatusBadRequest, errInvalidGrant, "assertion claims do not match workload selector")
 		return
 	}
@@ -187,6 +222,7 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 
 		allowedScopes, err := database.LookupAuthorizedScopes(ctx, s.db, subjectApp.ID, audienceApp.ID)
 		if err != nil {
+			reason = "scope lookup failed"
 			log.Printf("error looking up scopes: %v", err)
 			writeOAuthError(w, http.StatusInternalServerError, errInvalidScope, "internal error")
 			return
@@ -199,6 +235,7 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 
 		for _, sc := range requestedScopes {
 			if !allowedSet[sc] {
+				reason = "requested scope is not allowed"
 				writeOAuthError(w, http.StatusBadRequest, errInvalidScope, "requested scope is not allowed")
 				return
 			}
@@ -216,6 +253,7 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 		s.cfg.JWTTTL,
 	)
 	if err != nil {
+		reason = "claim creation failed"
 		log.Printf("error creating claims: %v", err)
 		writeOAuthError(w, http.StatusInternalServerError, errInvalidRequest, "internal error")
 		return
@@ -223,6 +261,7 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 
 	token, err := s.keyStore.SignToken(tokenClaims)
 	if err != nil {
+		reason = "token signing failed"
 		log.Printf("error signing token: %v", err)
 		writeOAuthError(w, http.StatusInternalServerError, errInvalidRequest, "internal error")
 		return
@@ -238,6 +277,8 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 		response["scope"] = grantedScopes
 	}
 
+	decision = "allow"
+	reason = "token issued"
 	writeJSON(w, http.StatusOK, response)
 }
 

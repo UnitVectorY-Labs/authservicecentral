@@ -120,6 +120,20 @@ func (s *Server) handleAuthorizationCreate(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	s.recordControlPlaneAudit(
+		r,
+		"create",
+		"authorization",
+		map[string]interface{}{"subject_application_id": subjectApp.ID, "audience_application_id": audienceApp.ID},
+		nil,
+		map[string]interface{}{
+			"subject_application_id":  subjectApp.ID,
+			"audience_application_id": audienceApp.ID,
+			"enabled":                 true,
+			"description":             description,
+		},
+		nil,
+	)
 
 	http.Redirect(w, r, fmt.Sprintf("/admin/apps/%s/authorizations/%s", subject, audienceSubject), http.StatusSeeOther)
 }
@@ -220,6 +234,11 @@ func (s *Server) handleAuthorizationUpdate(w http.ResponseWriter, r *http.Reques
 		http.NotFound(w, r)
 		return
 	}
+	auth, err := database.LookupAuthorization(ctx, s.db, subjectApp.ID, audienceApp.ID)
+	if err != nil || auth == nil {
+		http.NotFound(w, r)
+		return
+	}
 
 	enabled := r.FormValue("enabled") == "true"
 	if err := database.UpdateAuthorization(ctx, s.db, subjectApp.ID, audienceApp.ID, enabled); err != nil {
@@ -227,6 +246,15 @@ func (s *Server) handleAuthorizationUpdate(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	s.recordControlPlaneAudit(
+		r,
+		"update",
+		"authorization",
+		map[string]interface{}{"subject_application_id": subjectApp.ID, "audience_application_id": audienceApp.ID},
+		map[string]interface{}{"enabled": auth.Enabled},
+		map[string]interface{}{"enabled": enabled},
+		nil,
+	)
 
 	http.Redirect(w, r, fmt.Sprintf("/admin/apps/%s/authorizations/%s", subject, audience), http.StatusSeeOther)
 }
@@ -253,12 +281,26 @@ func (s *Server) handleAuthorizationDelete(w http.ResponseWriter, r *http.Reques
 		http.NotFound(w, r)
 		return
 	}
+	auth, err := database.LookupAuthorization(ctx, s.db, subjectApp.ID, audienceApp.ID)
+	if err != nil || auth == nil {
+		http.NotFound(w, r)
+		return
+	}
 
 	if err := database.DeleteAuthorization(ctx, s.db, subjectApp.ID, audienceApp.ID); err != nil {
 		log.Printf("error deleting authorization: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	s.recordControlPlaneAudit(
+		r,
+		"delete",
+		"authorization",
+		map[string]interface{}{"subject_application_id": subjectApp.ID, "audience_application_id": audienceApp.ID},
+		map[string]interface{}{"enabled": auth.Enabled},
+		nil,
+		nil,
+	)
 
 	http.Redirect(w, r, fmt.Sprintf("/admin/apps/%s?tab=authorizations", subject), http.StatusSeeOther)
 }
