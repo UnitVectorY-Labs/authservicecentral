@@ -201,8 +201,14 @@
   <div class="space-y-8">
     <!-- Outbound -->
     <div class="space-y-3">
-      <h2 class="text-lg font-semibold text-gray-900">Outbound Authorizations</h2>
-      <p class="text-sm text-gray-500">Audiences this application is authorized to access.</p>
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-gray-900">Outbound Authorizations</h2>
+          <p class="text-sm text-gray-500">Audiences this application is authorized to access.</p>
+        </div>
+        <a href="/admin/apps/{{.App.Subject}}/authorizations/new"
+           class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500">New Authorization</a>
+      </div>
       <div class="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
@@ -216,7 +222,7 @@
             {{range .OutboundAuths}}
             <tr>
               <td class="whitespace-nowrap px-6 py-4 text-sm">
-                <a href="/admin/apps/{{.AudienceSubject}}" class="font-medium text-indigo-600 hover:text-indigo-500">{{.AudienceSubject}}</a>
+                <a href="/admin/apps/{{$.App.Subject}}/authorizations/{{.AudienceSubject}}" class="font-medium text-indigo-600 hover:text-indigo-500">{{.AudienceSubject}}</a>
               </td>
               <td class="whitespace-nowrap px-6 py-4 text-sm">
                 {{if .Enabled}}

@@ -66,6 +66,15 @@ func (s *Server) routes() {
 		s.mux.HandleFunc("POST /admin/apps/{subject}/scopes/delete", s.requireAuth(s.handleScopeDelete))
 		s.mux.HandleFunc("POST /admin/apps/{subject}/credentials", s.requireAuth(s.handleCredentialCreate))
 		s.mux.HandleFunc("POST /admin/apps/{subject}/credentials/disable", s.requireAuth(s.handleCredentialDisable))
+
+		// Outbound authorizations
+		s.mux.HandleFunc("GET /admin/apps/{subject}/authorizations/new", s.requireAuth(s.handleAuthorizationNew))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/authorizations/new", s.requireAuth(s.handleAuthorizationCreate))
+		s.mux.HandleFunc("GET /admin/apps/{subject}/authorizations/{audience}", s.requireAuth(s.handleAuthorizationDetail))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/authorizations/{audience}", s.requireAuth(s.handleAuthorizationUpdate))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/authorizations/{audience}/delete", s.requireAuth(s.handleAuthorizationDelete))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/authorizations/{audience}/scopes", s.requireAuth(s.handleAuthorizationScopeAdd))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/authorizations/{audience}/scopes/delete", s.requireAuth(s.handleAuthorizationScopeRemove))
 	}
 
 	// Health check
