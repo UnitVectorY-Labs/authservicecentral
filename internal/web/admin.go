@@ -62,13 +62,18 @@ func renderPage(w http.ResponseWriter, r *http.Request, tmpl *template.Template,
 
 // Templates (parsed once)
 var (
-	loginTmpl      *template.Template
-	homeTmpl       *template.Template
-	appsTmpl       *template.Template
-	appsNewTmpl    *template.Template
-	appDetailTmpl  *template.Template
-	authNewTmpl    *template.Template
-	authDetailTmpl *template.Template
+	loginTmpl          *template.Template
+	homeTmpl           *template.Template
+	appsTmpl           *template.Template
+	appsNewTmpl        *template.Template
+	appDetailTmpl      *template.Template
+	authNewTmpl        *template.Template
+	authDetailTmpl     *template.Template
+	providersListTmpl  *template.Template
+	providerNewTmpl    *template.Template
+	providerDetailTmpl *template.Template
+	workloadNewTmpl    *template.Template
+	workloadDetailTmpl *template.Template
 )
 
 func init() {
@@ -79,6 +84,11 @@ func init() {
 	appDetailTmpl = parseTemplates("templates/apps_detail.html")
 	authNewTmpl = parseTemplates("templates/authorization_new.html")
 	authDetailTmpl = parseTemplates("templates/authorization_detail.html")
+	providersListTmpl = parseTemplates("templates/providers_list.html")
+	providerNewTmpl = parseTemplates("templates/providers_new.html")
+	providerDetailTmpl = parseTemplates("templates/providers_detail.html")
+	workloadNewTmpl = parseTemplates("templates/workload_new.html")
+	workloadDetailTmpl = parseTemplates("templates/workload_detail.html")
 }
 
 var subjectPattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)

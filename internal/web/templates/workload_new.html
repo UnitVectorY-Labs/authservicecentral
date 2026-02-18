@@ -1,0 +1,33 @@
+{{define "title"}}New Workload — authservicecentral{{end}}
+{{define "content"}}
+<div class="space-y-6">
+  <div class="sm:flex sm:items-center sm:justify-between">
+    <h1 class="text-2xl font-bold text-gray-900">New Workload</h1>
+    <a href="/admin/providers/{{.Provider.ID}}" class="mt-4 sm:mt-0 text-sm text-gray-500 hover:text-gray-700">&larr; Back to {{.Provider.Name}}</a>
+  </div>
+
+  <p class="text-sm text-gray-500">Create a new workload under <span class="font-medium text-gray-900">{{.Provider.Name}}</span>.</p>
+
+  <form method="POST" action="/admin/providers/{{.Provider.ID}}/workloads/new" class="space-y-6 max-w-xl">
+    {{if .Error}}<div class="rounded-md bg-red-50 p-4 text-sm text-red-800">{{.Error}}</div>{{end}}
+
+    <div>
+      <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+      <input type="text" id="name" name="name" value="{{.Name}}" required maxlength="255"
+             class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+    </div>
+
+    <div>
+      <label for="selector" class="block text-sm font-medium text-gray-700">Selector (JSON)</label>
+      <textarea id="selector" name="selector" rows="6" required
+                class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{.Selector}}</textarea>
+      <p class="mt-1 text-xs text-gray-500">JSON object defining the selector criteria for this workload.</p>
+    </div>
+
+    <div class="flex items-center space-x-3">
+      <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500">Create Workload</button>
+      <a href="/admin/providers/{{.Provider.ID}}" class="text-sm text-gray-500 hover:text-gray-700">Cancel</a>
+    </div>
+  </form>
+</div>
+{{end}}

@@ -877,6 +877,39 @@ func UnlinkApplicationWorkload(ctx context.Context, db *sql.DB, applicationID, w
 	return nil
 }
 
+// WorkloadApplicationItem represents an application linked to a workload
+type WorkloadApplicationItem struct {
+	ApplicationID int64
+	Subject       string
+	Description   sql.NullString
+}
+
+// ListWorkloadApplications lists applications linked to a workload
+func ListWorkloadApplications(ctx context.Context, db *sql.DB, workloadID int64) ([]WorkloadApplicationItem, error) {
+	rows, err := db.QueryContext(ctx,
+		`SELECT a.id, a.subject, a.description
+		 FROM application_workloads aw
+		 JOIN applications a ON a.id = aw.application_id
+		 WHERE aw.workload_id = $1
+		 ORDER BY a.subject ASC`,
+		workloadID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list workload applications: %w", err)
+	}
+	defer rows.Close()
+
+	var items []WorkloadApplicationItem
+	for rows.Next() {
+		var item WorkloadApplicationItem
+		if err := rows.Scan(&item.ApplicationID, &item.Subject, &item.Description); err != nil {
+			return nil, fmt.Errorf("scan workload application: %w", err)
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 // LookupJWKCacheEntry looks up a cached JWK by JWKS URL and key ID
 func LookupJWKCacheEntry(ctx context.Context, db *sql.DB, jwksURL, kid string) (*JWKCacheEntry, error) {
 	var e JWKCacheEntry
