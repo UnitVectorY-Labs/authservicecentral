@@ -43,6 +43,7 @@ func createSessionCookie(secret []byte, username string) *http.Cookie {
 		Value:    base64.URLEncoding.EncodeToString([]byte(payload + "|" + sig)),
 		Path:     "/admin",
 		HttpOnly: true,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(sessionMaxAge.Seconds()),
 	}
@@ -96,6 +97,7 @@ func clearSessionCookie() *http.Cookie {
 		Value:    "",
 		Path:     "/admin",
 		HttpOnly: true,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	}
