@@ -247,126 +247,6 @@ CREATE INDEX idx_dpa_audience ON data_plane_audit (audience_application_id);
 
 ---
 
-## `authservicecentral` configuration design
-
-Rules:
-- Every setting is configurable via **env var** and **CLI flag**
-- **Flags override env vars**
-- Keep env vars simple, no custom prefixes
-- Two subcommands: `run` and `migrate`
-
----
-
-## Common: Database (Postgres)
-
-| Env var | CLI flag | Default | Description |
-|---|---|---|---|
-| `DB_HOST` | `--db-host` | `localhost` | Postgres host |
-| `DB_PORT` | `--db-port` | `5432` | Postgres port |
-| `DB_USER` | `--db-user` | `postgres` | Postgres user |
-| `DB_PASSWORD` | `--db-password` | `postgres` | Postgres password |
-| `DB_NAME` | `--db-name` | `appdb` | Postgres database name |
-| `DB_SSLMODE` | `--db-sslmode` | `disable` | Postgres SSL mode (`disable`, `require`, etc.) |
-
----
-
-## `run` subcommand
-
-### Server + planes
-
-| Env var | CLI flag | Default | Description |
-|---|---|---|---|
-| `HTTP_ADDR` | `--http-addr` | `0.0.0.0` | Bind address |
-| `HTTP_PORT` | `--http-port` | `8080` | Bind port |
-| `CONTROL_PLANE_ENABLED` | `--control-plane-enabled` | `true` | Enable control plane (admin UI + admin API) |
-| `DATA_PLANE_ENABLED` | `--data-plane-enabled` | `true` | Enable data plane (token issuance endpoints) |
-| `BOOTSTRAP_ADMIN_PASSWORD` | `--bootstrap-admin-password` | *(none)* | If set, if a user tries to log in with the account "admin" and it does not exist in the database, if the password matches this value, the admin account will be created and the user logged in. |
-
-### Token issuer + TTL
-
-| Env var | CLI flag | Default | Description |
-|---|---|---|---|
-| `JWT_ISSUER` | `--jwt-issuer` | `http://localhost:8080` | JWT `iss` claim value for tokens minted by this server |
-| `JWT_TTL` | `--jwt-ttl` | `60m` | Lifetime for issued JWTs |
-
-### Signing keys (rotation-ready)
-
-Note: The signing key represents the private key that is used for signing or the other keys whose public keys are used for verification. The JWKS endpoint needs to return a kid for each key, for simplicity this is derived based on a hash of the key material, specifically just the public key material.
-
-| Env var | CLI flag | Default | Description |
-|---|---|---|---|
-| `JWT_SIGNING_KEY_FILE` | `--jwt-signing-key-file` | *(none)* | Path to **private** key used to sign new tokens (required when data plane is enabled) |
-| `JWT_INACTIVE_SIGNING_KEY_FILES` | `--jwt-inactive-signing-key-files` | *(empty)* | Comma-separated paths to **private** keys used for signing tokens that are no longer active (optional) |
-| `JWT_VERIFY_KEY_FILES` | `--jwt-verify-key-files` | *(empty)* | Comma-separated paths to **public** keys accepted for inclusion in the JWKS endpoint response, such as previously used keys |
-
-Recommended startup rules:
-- If `DATA_PLANE_ENABLED=true`, `JWT_SIGNING_KEY_FILE` must be set.
-
----
-
-
-## Data plane endpoints
-
-### `GET /.well-known/openid-configuration`
-
-| Field | Type | Notes |
-|---|---|---|
-| `issuer` | string | Must exactly match minted token `iss` |
-| `jwks_uri` | string | `/.well-known/jwks.json` |
-| `token_endpoint` | string | `/v1/token` |
-| `grant_types_supported` | string[] | `client_credentials`, `urn:ietf:params:oauth:grant-type:jwt-bearer` |
-
-**Example**
-
-```json
-{
-  "issuer": "https://token.example.com",
-  "jwks_uri": "https://token.example.com/.well-known/jwks.json",
-  "token_endpoint": "https://token.example.com/v1/token",
-  "grant_types_supported": [
-    "client_credentials",
-    "urn:ietf:params:oauth:grant-type:jwt-bearer"
-  ]
-}
-```
-
----
-
-### `GET /.well-known/jwks.json`
-
-| Field | Type | Notes |
-|---|---|---|
-| `keys` | object[] | JWK set (RFC 7517) |
-
-**Key fields (per key)**
-
-| Field | Type | Notes |
-|---|---|---|
-| `kty` | string | Key type |
-| `use` | string | `sig` |
-| `kid` | string | Derived from public key material |
-| `alg` | string | Signing algorithm (for example `RS256` or `ES256`) |
-| `n`,`e` / `x`,`y` | string | Public key parameters |
-
-**Example**
-
-```json
-{
-  "keys": [
-    {
-      "kty": "RSA",
-      "use": "sig",
-      "kid": "6d9c2c0b...",
-      "alg": "RS256",
-      "n": "...",
-      "e": "AQAB"
-    }
-  ]
-}
-```
-
----
-
 ## Token endpoint
 
 ### `POST /v1/token`
@@ -675,12 +555,24 @@ The following foundational pieces have been implemented:
 - **Documentation**: `docs/USAGE.md`, `docs/CONFIG.md`, `docs/DATABASE.md`
 - **Unit tests**: Configuration parsing, JWT key loading/serialization, web endpoint responses
 
+### Token Endpoint (`POST /v1/token`) — Client Credentials Grant
+
+The token endpoint has been implemented for the `client_credentials` grant type. See `docs/USAGE.md` for full endpoint documentation.
+
+- **JWT minting**: Tokens are signed using the configured signing key (RSA or ECDSA) with standard JWT claims (`iss`, `sub`, `aud`, `exp`, `iat`, `jti`, `scope`).
+- **Client authentication**: Credentials are verified against salted SHA-256 hashes stored in the `application_credentials` table. Disabled credentials are rejected.
+- **Authorization enforcement**: The `(subject → audience)` relationship is checked in the `authorizations` table; disabled authorizations are rejected.
+- **Scope validation**: Requested scopes are validated against allowed scopes in `authorization_scopes` and `application_scopes`. Invalid scopes return `invalid_scope`.
+- **OAuth 2.0 error responses**: Standard error format per RFC 6749 with `error` and `error_description` fields.
+- **Credential hashing**: `internal/credential` package provides salted SHA-256 hashing (`sha256:<salt_hex>:<hash_hex>`) with constant-time comparison for verification.
+- **Unit tests**: JWT signing/verification, credential hashing, token endpoint parameter validation.
+- **Integration tested**: Full flow verified against PostgreSQL (applications, credentials, authorizations, scopes).
+
 ## Next Steps
 
 The following items from the design remain to be implemented, roughly in priority order:
 
-1. **Token endpoint (`POST /v1/token`)**: Client credentials grant implementation with credential verification, authorization enforcement, JWT minting, and proper OAuth 2.0 error responses.
-2. **Control plane admin UI**: Login page, authentication with bootstrap admin password, session management, and the HTMX-based admin interface (applications list/detail, identity providers, etc.).
-3. **JWT Bearer grant**: Workload identity authentication via external JWT assertions with JWKS caching.
-4. **Audit logging**: Control plane and data plane audit trail recording.
-5. **Admin UI features**: Application management (CRUD, credentials, scopes), authorization management (inbound/outbound), identity provider and workload management.
+1. **Control plane admin UI**: Login page, authentication with bootstrap admin password, session management, and the HTMX-based admin interface (applications list/detail, identity providers, etc.).
+2. **JWT Bearer grant**: Workload identity authentication via external JWT assertions with JWKS caching.
+3. **Audit logging**: Control plane and data plane audit trail recording.
+4. **Admin UI features**: Application management (CRUD, credentials, scopes), authorization management (inbound/outbound), identity provider and workload management.

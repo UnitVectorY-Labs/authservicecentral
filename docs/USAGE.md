@@ -70,6 +70,83 @@ When the data plane is enabled (`--data-plane-enabled=true`, the default), the f
 |---|---|
 | `GET /.well-known/openid-configuration` | OpenID Connect discovery document |
 | `GET /.well-known/jwks.json` | JSON Web Key Set for token verification |
+| `POST /v1/token` | OAuth 2.0 token endpoint |
+
+#### `POST /v1/token`
+
+Issues JWT access tokens using the OAuth 2.0 token endpoint (RFC 6749).
+
+**Content-Type:** `application/x-www-form-urlencoded`
+
+**Supported grant types:**
+
+- `client_credentials` — authenticate using a client ID and secret
+
+##### Client Credentials Grant
+
+| Parameter | Required | Description |
+|---|---|---|
+| `grant_type` | yes | Must be `client_credentials` |
+| `client_id` | yes | Client identifier for the subject application |
+| `client_secret` | yes | Client secret |
+| `audience` | yes | Subject identifier of the target (audience) application |
+| `scope` | no | Space-delimited list of requested scopes |
+
+**Example:**
+
+```bash
+curl -X POST "http://localhost:8080/v1/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --data-urlencode "grant_type=client_credentials" \
+  --data-urlencode "client_id=my-client-id" \
+  --data-urlencode "client_secret=my-secret" \
+  --data-urlencode "audience=service-b" \
+  --data-urlencode "scope=read write"
+```
+
+**Success Response (200):**
+
+```json
+{
+  "access_token": "eyJhbGciOi...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "read write"
+}
+```
+
+The `scope` field is only present if scopes were granted. The `expires_in` value is in seconds and corresponds to the configured `--jwt-ttl`.
+
+**Error Responses:**
+
+Errors follow RFC 6749 format:
+
+```json
+{
+  "error": "invalid_request",
+  "error_description": "audience is required"
+}
+```
+
+| Error Code | When |
+|---|---|
+| `invalid_request` | Missing or invalid parameters (including missing `audience`) |
+| `invalid_client` | Client authentication failed, credential disabled, or application locked |
+| `invalid_grant` | Invalid assertion (JWT bearer grant, not yet supported) |
+| `access_denied` | No authorization exists or authorization is disabled |
+| `invalid_scope` | Requested scope is not allowed for the subject-audience pair |
+
+##### Minted JWT Claims
+
+| Claim | Description |
+|---|---|
+| `iss` | Configured issuer (`--jwt-issuer`) |
+| `sub` | Subject application identifier |
+| `aud` | Audience application identifier |
+| `exp` | Expiration time |
+| `iat` | Issued-at time |
+| `jti` | Unique token identifier |
+| `scope` | Granted scopes (if any) |
 
 ### Health Check
 
