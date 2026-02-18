@@ -125,3 +125,128 @@ func LookupAuthorizedScopes(ctx context.Context, db *sql.DB, subjectAppID, audie
 	}
 	return scopes, rows.Err()
 }
+
+// User represents a row from the users table
+type User struct {
+	ID           int64
+	Username     string
+	PasswordHash string
+	Locked       bool
+}
+
+// LookupUserByUsername retrieves a user by username
+func LookupUserByUsername(ctx context.Context, db *sql.DB, username string) (*User, error) {
+	var u User
+	err := db.QueryRowContext(ctx,
+		`SELECT id, username, password_hash, locked
+		 FROM users
+		 WHERE username = $1`,
+		username,
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Locked)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("lookup user: %w", err)
+	}
+	return &u, nil
+}
+
+// CreateUser inserts a new user and returns the created user
+func CreateUser(ctx context.Context, db *sql.DB, username, passwordHash string) (*User, error) {
+	var u User
+	err := db.QueryRowContext(ctx,
+		`INSERT INTO users (username, password_hash)
+		 VALUES ($1, $2)
+		 RETURNING id, username, password_hash, locked`,
+		username, passwordHash,
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Locked)
+	if err != nil {
+		return nil, fmt.Errorf("create user: %w", err)
+	}
+	return &u, nil
+}
+
+// UpdateUserLastLogin updates the last_login_at timestamp for a user
+func UpdateUserLastLogin(ctx context.Context, db *sql.DB, userID int64) error {
+	_, err := db.ExecContext(ctx,
+		`UPDATE users SET last_login_at = now() WHERE id = $1`,
+		userID,
+	)
+	if err != nil {
+		return fmt.Errorf("update last login: %w", err)
+	}
+	return nil
+}
+
+// ApplicationListItem represents an application in a list view
+type ApplicationListItem struct {
+	ID          int64
+	Subject     string
+	Description sql.NullString
+	AppType     string
+	Locked      bool
+}
+
+// ListApplications retrieves a paginated list of applications
+func ListApplications(ctx context.Context, db *sql.DB, search string, limit, offset int) ([]ApplicationListItem, error) {
+	var rows *sql.Rows
+	var err error
+
+	if search != "" {
+		pattern := "%" + search + "%"
+		rows, err = db.QueryContext(ctx,
+			`SELECT id, subject, description, app_type, locked
+			 FROM applications
+			 WHERE subject ILIKE $1 OR description ILIKE $1
+			 ORDER BY subject ASC
+			 LIMIT $2 OFFSET $3`,
+			pattern, limit, offset,
+		)
+	} else {
+		rows, err = db.QueryContext(ctx,
+			`SELECT id, subject, description, app_type, locked
+			 FROM applications
+			 ORDER BY subject ASC
+			 LIMIT $1 OFFSET $2`,
+			limit, offset,
+		)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("list applications: %w", err)
+	}
+	defer rows.Close()
+
+	var apps []ApplicationListItem
+	for rows.Next() {
+		var a ApplicationListItem
+		if err := rows.Scan(&a.ID, &a.Subject, &a.Description, &a.AppType, &a.Locked); err != nil {
+			return nil, fmt.Errorf("scan application: %w", err)
+		}
+		apps = append(apps, a)
+	}
+	return apps, rows.Err()
+}
+
+// CountApplications returns the total number of applications
+func CountApplications(ctx context.Context, db *sql.DB, search string) (int, error) {
+	var count int
+	var err error
+
+	if search != "" {
+		pattern := "%" + search + "%"
+		err = db.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM applications
+			 WHERE subject ILIKE $1 OR description ILIKE $1`,
+			pattern,
+		).Scan(&count)
+	} else {
+		err = db.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM applications`,
+		).Scan(&count)
+	}
+	if err != nil {
+		return 0, fmt.Errorf("count applications: %w", err)
+	}
+	return count, nil
+}

@@ -1,0 +1,12 @@
+{{define "partials/flash"}}
+{{if .Flash}}
+<div class="mb-4 rounded-md bg-green-50 p-4">
+  <p class="text-sm text-green-700">{{.Flash}}</p>
+</div>
+{{end}}
+{{if .Error}}
+<div class="mb-4 rounded-md bg-red-50 p-4">
+  <p class="text-sm text-red-700">{{.Error}}</p>
+</div>
+{{end}}
+{{end}}
