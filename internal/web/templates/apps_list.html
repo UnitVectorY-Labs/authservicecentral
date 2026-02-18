@@ -1,0 +1,84 @@
+{{define "title"}}Applications — authservicecentral{{end}}
+{{define "content"}}
+<div class="space-y-6">
+  <div class="sm:flex sm:items-center sm:justify-between">
+    <h1 class="text-2xl font-bold text-gray-900">Applications</h1>
+    <a href="/admin/apps/new" class="mt-4 sm:mt-0 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500">
+      <svg xmlns="http://www.w3.org/2000/svg" class="mr-1.5 h-4 w-4" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg>
+      New Application
+    </a>
+  </div>
+
+  <!-- Search -->
+  <form method="GET" action="/admin/apps" class="flex items-center space-x-2">
+    <input type="text" name="q" value="{{.Search}}" placeholder="Search by subject or description..."
+           class="block w-full max-w-md rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+    <button type="submit" class="rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-300 hover:bg-gray-50">Search</button>
+    {{if .Search}}
+    <a href="/admin/apps" class="text-sm text-gray-500 hover:text-gray-700">Clear</a>
+    {{end}}
+  </form>
+
+  <!-- Table -->
+  <div class="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Subject</th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Description</th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Type</th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-200 bg-white">
+        {{if .Apps}}
+        {{range .Apps}}
+        <tr class="hover:bg-gray-50">
+          <td class="whitespace-nowrap px-6 py-4 text-sm">
+            <a href="/admin/apps/{{.Subject}}" class="font-medium text-indigo-600 hover:text-indigo-500">{{.Subject}}</a>
+          </td>
+          <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{if .Description.Valid}}{{.Description.String}}{{else}}—{{end}}</td>
+          <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+              {{if eq .AppType "service"}}bg-blue-100 text-blue-800
+              {{else if eq .AppType "admin"}}bg-purple-100 text-purple-800
+              {{else}}bg-gray-100 text-gray-800{{end}}">{{.AppType}}</span>
+          </td>
+          <td class="whitespace-nowrap px-6 py-4 text-sm">
+            {{if .Locked}}
+            <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">Locked</span>
+            {{else}}
+            <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">Active</span>
+            {{end}}
+          </td>
+        </tr>
+        {{end}}
+        {{else}}
+        <tr>
+          <td colspan="4" class="px-6 py-12 text-center text-sm text-gray-500">
+            {{if .Search}}No applications found matching "{{.Search}}".{{else}}No applications yet. Create your first application to get started.{{end}}
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {{if gt .TotalPages 1}}
+  <nav class="flex items-center justify-between" aria-label="Pagination">
+    <p class="text-sm text-gray-700">
+      Showing <span class="font-medium">{{.StartItem}}</span> to <span class="font-medium">{{.EndItem}}</span> of <span class="font-medium">{{.Total}}</span> applications
+    </p>
+    <div class="flex space-x-2">
+      {{if gt .Page 1}}
+      <a href="/admin/apps?page={{.PrevPage}}{{if .Search}}&q={{.Search}}{{end}}" class="rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-300 hover:bg-gray-50">Previous</a>
+      {{end}}
+      {{if lt .Page .TotalPages}}
+      <a href="/admin/apps?page={{.NextPage}}{{if .Search}}&q={{.Search}}{{end}}" class="rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-300 hover:bg-gray-50">Next</a>
+      {{end}}
+    </div>
+  </nav>
+  {{end}}
+</div>
+{{end}}

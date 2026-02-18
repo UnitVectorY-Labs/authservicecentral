@@ -13,19 +13,26 @@ import (
 
 // Server holds the HTTP server dependencies
 type Server struct {
-	cfg      *config.Config
-	db       *sql.DB
-	keyStore *jwt.KeyStore
-	mux      *http.ServeMux
+	cfg           *config.Config
+	db            *sql.DB
+	keyStore      *jwt.KeyStore
+	mux           *http.ServeMux
+	sessionSecret []byte
 }
 
 // NewServer creates a new web server
 func NewServer(cfg *config.Config, db *sql.DB, keyStore *jwt.KeyStore) *Server {
+	secret, err := generateSessionSecret()
+	if err != nil {
+		log.Fatalf("failed to generate session secret: %v", err)
+	}
+
 	s := &Server{
-		cfg:      cfg,
-		db:       db,
-		keyStore: keyStore,
-		mux:      http.NewServeMux(),
+		cfg:           cfg,
+		db:            db,
+		keyStore:      keyStore,
+		mux:           http.NewServeMux(),
+		sessionSecret: secret,
 	}
 	s.routes()
 	return s
@@ -40,6 +47,15 @@ func (s *Server) routes() {
 		s.mux.HandleFunc("GET /.well-known/openid-configuration", s.handleOpenIDConfiguration)
 		s.mux.HandleFunc("GET /.well-known/jwks.json", s.handleJWKS)
 		s.mux.HandleFunc("POST /v1/token", s.handleToken)
+	}
+
+	// Control plane endpoints
+	if s.cfg.ControlPlaneEnabled {
+		s.mux.HandleFunc("GET /admin/login", s.handleLoginPage)
+		s.mux.HandleFunc("POST /admin/login", s.handleLoginSubmit)
+		s.mux.HandleFunc("GET /admin/logout", s.handleLogout)
+		s.mux.HandleFunc("GET /admin/{$}", s.requireAuth(s.handleAdminHome))
+		s.mux.HandleFunc("GET /admin/apps", s.requireAuth(s.handleAppsList))
 	}
 
 	// Health check

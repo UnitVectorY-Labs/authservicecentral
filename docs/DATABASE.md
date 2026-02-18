@@ -47,3 +47,11 @@ The database schema includes the following tables:
 | `users` | Local user accounts for control plane authentication |
 | `control_plane_audit` | Audit log for administrative actions |
 | `data_plane_audit` | Audit log for token issuance decisions |
+
+## Credential Hashing
+
+`application_credentials.secret_hash` and `users.password_hash` store hashes in this format:
+
+`pbkdf2_sha256:<iterations>:<salt_hex>:<hash_hex>`
+
+Hashes from older preview builds that used the legacy `sha256:<salt_hex>:<hash_hex>` format are not accepted by the current verifier. Rotate affected client secrets and user passwords after upgrading.
