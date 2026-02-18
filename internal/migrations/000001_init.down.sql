@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS data_plane_audit;
+DROP TABLE IF EXISTS control_plane_audit;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS jwk_cache;
+DROP TABLE IF EXISTS authorization_scopes;
+DROP TABLE IF EXISTS authorizations;
+DROP TABLE IF EXISTS application_workloads;
+DROP TABLE IF EXISTS workloads;
+DROP TABLE IF EXISTS identity_providers;
+DROP TABLE IF EXISTS application_credentials;
+DROP TABLE IF EXISTS application_scopes;
+DROP TABLE IF EXISTS applications;
