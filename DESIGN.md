@@ -58,7 +58,7 @@ CREATE TABLE application_credentials (
 
   credential_type VARCHAR(32) NOT NULL CHECK (credential_type IN ('client_secret')),
   client_id       VARCHAR(255) NOT NULL UNIQUE,   -- case-sensitive by default
-  secret_hash     VARCHAR(255) NOT NULL,   -- if you use argon2id/bcrypt, you may want TEXT instead, salted hash that must be a performant hash for verification as this cannot be slowed down with a more time consuming hash.
+  secret_hash     VARCHAR(255) NOT NULL,   -- store a password-safe KDF hash; use TEXT if your chosen format can exceed 255 chars
   label           VARCHAR(255),
 
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -190,7 +190,7 @@ CREATE TABLE users (
   id             BIGSERIAL PRIMARY KEY,
 
   username       VARCHAR(255) NOT NULL UNIQUE,
-  password_hash  VARCHAR(255) NOT NULL,  -- if argon2id/bcrypt strings exceed 255, switch to TEXT
+  password_hash  VARCHAR(255) NOT NULL,  -- store a password-safe KDF hash; switch to TEXT if needed
   locked         BOOLEAN NOT NULL DEFAULT FALSE,
 
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -560,11 +560,11 @@ The following foundational pieces have been implemented:
 The token endpoint has been implemented for the `client_credentials` grant type. See `docs/USAGE.md` for full endpoint documentation.
 
 - **JWT minting**: Tokens are signed using the configured signing key (RSA or ECDSA) with standard JWT claims (`iss`, `sub`, `aud`, `exp`, `iat`, `jti`, `scope`).
-- **Client authentication**: Credentials are verified against salted SHA-256 hashes stored in the `application_credentials` table. Disabled credentials are rejected.
+- **Client authentication**: Credentials are verified against PBKDF2-SHA256 hashes with per-secret random salt and work factor stored in the `application_credentials` table. Disabled credentials are rejected.
 - **Authorization enforcement**: The `(subject → audience)` relationship is checked in the `authorizations` table; disabled authorizations are rejected.
 - **Scope validation**: Requested scopes are validated against allowed scopes in `authorization_scopes` and `application_scopes`. Invalid scopes return `invalid_scope`.
 - **OAuth 2.0 error responses**: Standard error format per RFC 6749 with `error` and `error_description` fields.
-- **Credential hashing**: `internal/credential` package provides salted SHA-256 hashing (`sha256:<salt_hex>:<hash_hex>`) with constant-time comparison for verification.
+- **Credential hashing**: `internal/credential` package provides PBKDF2-SHA256 hashing (`pbkdf2_sha256:<iterations>:<salt_hex>:<hash_hex>`) with constant-time comparison for verification.
 - **Unit tests**: JWT signing/verification, credential hashing, token endpoint parameter validation.
 - **Integration tested**: Full flow verified against PostgreSQL (applications, credentials, authorizations, scopes).
 

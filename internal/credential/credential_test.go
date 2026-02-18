@@ -1,6 +1,7 @@
 package credential
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -11,20 +12,27 @@ func TestHashSecretFormat(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	parts := strings.SplitN(hash, ":", 3)
-	if len(parts) != 3 {
-		t.Fatalf("expected 3 parts, got %d in %q", len(parts), hash)
+	parts := strings.SplitN(hash, ":", 4)
+	if len(parts) != 4 {
+		t.Fatalf("expected 4 parts, got %d in %q", len(parts), hash)
 	}
-	if parts[0] != "sha256" {
-		t.Errorf("prefix = %q, want sha256", parts[0])
+	if parts[0] != hashAlgorithm {
+		t.Errorf("prefix = %q, want %q", parts[0], hashAlgorithm)
 	}
-	// salt should be 32 hex chars (16 bytes)
-	if len(parts[1]) != 32 {
-		t.Errorf("salt hex length = %d, want 32", len(parts[1]))
+	iterations, err := strconv.Atoi(parts[1])
+	if err != nil {
+		t.Fatalf("iterations parse error: %v", err)
 	}
-	// hash should be 64 hex chars (32 bytes)
-	if len(parts[2]) != 64 {
-		t.Errorf("hash hex length = %d, want 64", len(parts[2]))
+	if iterations != pbkdf2Iterations {
+		t.Errorf("iterations = %d, want %d", iterations, pbkdf2Iterations)
+	}
+	// salt should be saltLength bytes hex-encoded
+	if len(parts[2]) != saltLength*2 {
+		t.Errorf("salt hex length = %d, want %d", len(parts[2]), saltLength*2)
+	}
+	// derived key should be derivedKeyLength bytes hex-encoded
+	if len(parts[3]) != derivedKeyLength*2 {
+		t.Errorf("hash hex length = %d, want %d", len(parts[3]), derivedKeyLength*2)
 	}
 }
 
@@ -60,6 +68,25 @@ func TestVerifySecretInvalidFormat(t *testing.T) {
 func TestVerifySecretEmptyString(t *testing.T) {
 	if VerifySecret("secret", "") {
 		t.Error("VerifySecret should return false for empty hash")
+	}
+}
+
+func TestVerifySecretInvalidIterationCount(t *testing.T) {
+	hash, err := HashSecret("secret")
+	if err != nil {
+		t.Fatalf("hash: %v", err)
+	}
+
+	parts := strings.SplitN(hash, ":", 4)
+
+	parts[1] = "0"
+	if VerifySecret("secret", strings.Join(parts, ":")) {
+		t.Error("VerifySecret should return false for zero iterations")
+	}
+
+	parts[1] = strconv.Itoa(maxPBKDF2Iterations + 1)
+	if VerifySecret("secret", strings.Join(parts, ":")) {
+		t.Error("VerifySecret should return false for out-of-range iterations")
 	}
 }
 
