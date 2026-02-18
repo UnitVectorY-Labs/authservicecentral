@@ -659,4 +659,28 @@ Practical conventions:
 
 # Progress and Next Steps
 
-Implementation not yet started.
+## Completed
+
+### Foundation (CLI, Database, Data Plane Discovery)
+
+The following foundational pieces have been implemented:
+
+- **CLI structure**: `run`, `migrate`, and `version` subcommands with all configuration via environment variables and CLI flags (flags override env vars). See `docs/CONFIG.md` and `docs/USAGE.md`.
+- **Database migrations**: Full schema from this design document implemented as embedded SQL migrations using `golang-migrate`. All 12 tables created. See `docs/DATABASE.md`.
+- **Data plane discovery endpoints**:
+  - `GET /.well-known/openid-configuration` returns the OpenID Connect discovery document
+  - `GET /.well-known/jwks.json` returns the JSON Web Key Set with all configured keys
+- **JWT key management**: Supports loading RSA and ECDSA private/public keys from PEM files. Key IDs (`kid`) are derived from a SHA-256 hash of the public key material. Supports active signing key, inactive signing keys (still in JWKS), and verify-only public keys.
+- **Health check**: `GET /healthz` endpoint
+- **Documentation**: `docs/USAGE.md`, `docs/CONFIG.md`, `docs/DATABASE.md`
+- **Unit tests**: Configuration parsing, JWT key loading/serialization, web endpoint responses
+
+## Next Steps
+
+The following items from the design remain to be implemented, roughly in priority order:
+
+1. **Token endpoint (`POST /v1/token`)**: Client credentials grant implementation with credential verification, authorization enforcement, JWT minting, and proper OAuth 2.0 error responses.
+2. **Control plane admin UI**: Login page, authentication with bootstrap admin password, session management, and the HTMX-based admin interface (applications list/detail, identity providers, etc.).
+3. **JWT Bearer grant**: Workload identity authentication via external JWT assertions with JWKS caching.
+4. **Audit logging**: Control plane and data plane audit trail recording.
+5. **Admin UI features**: Application management (CRUD, credentials, scopes), authorization management (inbound/outbound), identity provider and workload management.
