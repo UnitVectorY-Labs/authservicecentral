@@ -568,11 +568,28 @@ The token endpoint has been implemented for the `client_credentials` grant type.
 - **Unit tests**: JWT signing/verification, credential hashing, token endpoint parameter validation.
 - **Integration tested**: Full flow verified against PostgreSQL (applications, credentials, authorizations, scopes).
 
+### Control Plane Admin UI — Foundation
+
+The admin web interface foundation has been implemented. See `docs/USAGE.md` for endpoint documentation.
+
+- **Login page**: `/admin/login` with username/password form, renders as a standalone page.
+- **Bootstrap admin**: When `--bootstrap-admin-password` is set, the first login with username `admin` and the configured password automatically creates the admin user account.
+- **Session management**: HMAC-signed cookies (SHA-256) with 8-hour lifetime. Session cookie is HttpOnly with SameSite=Lax.
+- **Auth middleware**: All `/admin/` routes (except login/logout) require authentication; unauthenticated requests redirect to `/admin/login`.
+- **Admin home page**: `/admin/` dashboard with navigation cards linking to Applications, Identity Providers, and Settings.
+- **Applications list**: `/admin/apps` with paginated table, search by subject/description, type badges, and status indicators.
+- **HTML templates**: Base layout (`base.html`) with header navigation, footer, and flash messages. Partials for reusable components.
+- **HTMX support**: Every admin route supports full page render (direct navigation) and partial render (`HX-Request: true` returns only the `#main` content). `hx-boost="true"` on body enables SPA-like navigation.
+- **Tailwind CSS**: Compiled CSS embedded in binary. Responsive design with utility classes.
+- **Logout**: `/admin/logout` clears session cookie and redirects to login.
+- **Unit tests**: Session cookie round-trip, signature validation, auth middleware redirect/pass-through, login page rendering, control plane enable/disable.
+
 ## Next Steps
 
 The following items from the design remain to be implemented, roughly in priority order:
 
-1. **Control plane admin UI**: Login page, authentication with bootstrap admin password, session management, and the HTMX-based admin interface (applications list/detail, identity providers, etc.).
-2. **JWT Bearer grant**: Workload identity authentication via external JWT assertions with JWKS caching.
-3. **Audit logging**: Control plane and data plane audit trail recording.
-4. **Admin UI features**: Application management (CRUD, credentials, scopes), authorization management (inbound/outbound), identity provider and workload management.
+1. **Admin UI — Application CRUD**: Create new application form (`/admin/apps/new`), application detail page (`/admin/apps/{subject}`), edit application, offered scopes management, credentials management (create/disable client secrets with limit of 2 active).
+2. **Admin UI — Authorizations**: Outbound and inbound authorization management from the application detail page, including scope selection and enable/disable toggles.
+3. **Admin UI — Identity Providers**: Provider list, create, detail pages. Workload management nested under providers.
+4. **JWT Bearer grant**: Workload identity authentication via external JWT assertions with JWKS caching.
+5. **Audit logging**: Control plane and data plane audit trail recording.

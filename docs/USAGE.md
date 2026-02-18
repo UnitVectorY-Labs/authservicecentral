@@ -148,6 +148,26 @@ Errors follow RFC 6749 format:
 | `jti` | Unique token identifier |
 | `scope` | Granted scopes (if any) |
 
+### Control Plane (Admin UI)
+
+When the control plane is enabled (`--control-plane-enabled=true`, the default), the admin web interface is available under `/admin/`.
+
+| Endpoint | Description |
+|---|---|
+| `GET /admin/login` | Login page |
+| `POST /admin/login` | Login form submission |
+| `GET /admin/logout` | Logout (clears session) |
+| `GET /admin/` | Admin dashboard home page |
+| `GET /admin/apps` | Applications list with search and pagination |
+
+#### Authentication
+
+The admin interface requires authentication. Users must log in with a valid username and password. Sessions are managed via signed HTTP cookies (8-hour lifetime).
+
+#### Bootstrap Admin
+
+When `--bootstrap-admin-password` is set, the first login with username `admin` and the configured password will automatically create the admin user account. This is intended for initial setup and testing.
+
 ### Health Check
 
 | Endpoint | Description |
