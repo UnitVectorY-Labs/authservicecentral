@@ -16,10 +16,25 @@ The main application web is launched using the "run" sub-command.
 
 Minimize the use of external dependencies relying on the Go standard library as much as possible.
 
-Tailwind is used for CSS on this project, but not as a JavaScript framework. The Tailwind CLI is used directly to compile the CSS into a single file that is committed to the repository and embedded in the binary. The use of Tailwind is purely for CSS utility classes and does not involve any JavaScript or runtime dependencies.
+Tailwind is used only to generate CSS at build time. This is not a JavaScript project.
+
+- Use Tailwind CLI to compile tailwind.css into a single committed stylesheet.
+- The generated CSS must not be minified.
+- Do not add or commit JavaScript project artifacts: package.json, lockfiles, node_modules/, PostCSS configs, etc.
+- On Ubuntu, prefer the standalone Tailwind binary install. If you do use Node, use it only to run the Tailwind command.
+
+CLI build command:
 
 ```
 tailwindcss -i ./internal/web/static/tailwind.css -o ./internal/web/static/style.css
+```
+
+npx example (no project setup, no files committed):
+
+```
+npx --yes tailwindcss@latest \
+  -i ./internal/web/static/tailwind.css \
+  -o ./internal/web/static/style.css
 ```
 
 The icons used by this project are embedded SVGs taken from https://github.com/tabler/tabler-icons and are included as inline SVG in the HTML templates.
