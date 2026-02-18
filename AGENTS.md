@@ -32,7 +32,7 @@ tailwindcss -i ./internal/web/static/tailwind.css -o ./internal/web/static/style
 npx example (no project setup, no files committed):
 
 ```
-npx --yes tailwindcss@latest \
+npx --yes tailwindcss@3.4.17 \
   -i ./internal/web/static/tailwind.css \
   -o ./internal/web/static/style.css
 ```
