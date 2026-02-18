@@ -39,6 +39,7 @@ func (s *Server) routes() {
 	if s.cfg.DataPlaneEnabled {
 		s.mux.HandleFunc("GET /.well-known/openid-configuration", s.handleOpenIDConfiguration)
 		s.mux.HandleFunc("GET /.well-known/jwks.json", s.handleJWKS)
+		s.mux.HandleFunc("POST /v1/token", s.handleToken)
 	}
 
 	// Health check
@@ -83,4 +84,11 @@ func (s *Server) handleJWKS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	json.NewEncoder(w).Encode(jwks)
+}
+
+func writeJSON(w http.ResponseWriter, statusCode int, v interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(v)
 }
