@@ -56,6 +56,16 @@ func (s *Server) routes() {
 		s.mux.HandleFunc("GET /admin/logout", s.handleLogout)
 		s.mux.HandleFunc("GET /admin/{$}", s.requireAuth(s.handleAdminHome))
 		s.mux.HandleFunc("GET /admin/apps", s.requireAuth(s.handleAppsList))
+
+		// Application CRUD
+		s.mux.HandleFunc("GET /admin/apps/new", s.requireAuth(s.handleAppsNew))
+		s.mux.HandleFunc("POST /admin/apps/new", s.requireAuth(s.handleAppsCreate))
+		s.mux.HandleFunc("GET /admin/apps/{subject}", s.requireAuth(s.handleAppDetail))
+		s.mux.HandleFunc("POST /admin/apps/{subject}", s.requireAuth(s.handleAppUpdate))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/scopes", s.requireAuth(s.handleScopeCreate))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/scopes/delete", s.requireAuth(s.handleScopeDelete))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/credentials", s.requireAuth(s.handleCredentialCreate))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/credentials/disable", s.requireAuth(s.handleCredentialDisable))
 	}
 
 	// Health check
