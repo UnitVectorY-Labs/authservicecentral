@@ -1,0 +1,94 @@
+{{define "title"}}{{.Provider.Name}} — authservicecentral{{end}}
+{{define "content"}}
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="sm:flex sm:items-center sm:justify-between">
+    <div class="flex items-center space-x-3">
+      <h1 class="text-2xl font-bold text-gray-900">{{.Provider.Name}}</h1>
+      <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">{{.Provider.ProviderType}}</span>
+    </div>
+    <a href="/admin/providers" class="mt-4 sm:mt-0 text-sm text-gray-500 hover:text-gray-700">&larr; Back to Providers</a>
+  </div>
+
+  {{if .Error}}<div class="rounded-md bg-red-50 p-4 text-sm text-red-800">{{.Error}}</div>{{end}}
+
+  <!-- Provider Details -->
+  <div class="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
+    <form method="POST" action="/admin/providers/{{.Provider.ID}}" class="divide-y divide-gray-200">
+      <div class="px-6 py-5 space-y-4">
+        <div>
+          <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+          <input type="text" id="name" name="name" value="{{.Provider.Name}}" required maxlength="255"
+                 class="mt-1 block w-full max-w-lg rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label for="issuer_url" class="block text-sm font-medium text-gray-700">Issuer URL</label>
+          <input type="url" id="issuer_url" name="issuer_url" value="{{.Provider.IssuerURL}}" required maxlength="2048"
+                 class="mt-1 block w-full max-w-lg rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label for="jwks_url" class="block text-sm font-medium text-gray-700">JWKS URL (optional)</label>
+          <input type="url" id="jwks_url" name="jwks_url" value="{{if .Provider.JWKSURL.Valid}}{{.Provider.JWKSURL.String}}{{end}}" maxlength="2048"
+                 class="mt-1 block w-full max-w-lg rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        </div>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm text-gray-500">
+          <div>Created: {{.Provider.CreatedAt.Format "2006-01-02 15:04:05 UTC"}}</div>
+          <div>Updated: {{.Provider.UpdatedAt.Format "2006-01-02 15:04:05 UTC"}}</div>
+        </div>
+      </div>
+      <div class="px-6 py-4 bg-gray-50 flex items-center justify-between">
+        <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500">Save Changes</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Workloads -->
+  <div class="space-y-4">
+    <div class="sm:flex sm:items-center sm:justify-between">
+      <h2 class="text-lg font-semibold text-gray-900">Workloads</h2>
+      <a href="/admin/providers/{{.Provider.ID}}/workloads/new"
+         class="mt-2 sm:mt-0 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500">
+        <svg xmlns="http://www.w3.org/2000/svg" class="mr-1.5 h-4 w-4" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg>
+        New Workload
+      </a>
+    </div>
+
+    <div class="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Name</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Created</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 bg-white">
+          {{if .Workloads}}
+          {{range .Workloads}}
+          <tr class="hover:bg-gray-50">
+            <td class="whitespace-nowrap px-6 py-4 text-sm">
+              <a href="/admin/providers/{{$.Provider.ID}}/workloads/{{.ID}}" class="font-medium text-indigo-600 hover:text-indigo-500">{{.Name}}</a>
+            </td>
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{.CreatedAt.Format "2006-01-02"}}</td>
+          </tr>
+          {{end}}
+          {{else}}
+          <tr>
+            <td colspan="2" class="px-6 py-12 text-center text-sm text-gray-500">No workloads yet.</td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Delete Provider -->
+  <div class="rounded-lg bg-white shadow-sm ring-1 ring-gray-200 p-6">
+    <h2 class="text-lg font-semibold text-red-600">Delete Provider</h2>
+    <p class="mt-1 text-sm text-gray-500">This action cannot be undone. All workloads under this provider will also be deleted.</p>
+    <form method="POST" action="/admin/providers/{{.Provider.ID}}/delete" class="mt-4"
+          onsubmit="return confirm('Are you sure you want to delete this provider?');">
+      <button type="submit" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-500">Delete Provider</button>
+    </form>
+  </div>
+</div>
+{{end}}

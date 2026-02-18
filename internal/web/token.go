@@ -21,7 +21,7 @@ func (s *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 	case "client_credentials":
 		s.handleClientCredentialsGrant(w, r)
 	case "urn:ietf:params:oauth:grant-type:jwt-bearer":
-		writeOAuthError(w, http.StatusBadRequest, errInvalidGrant, "jwt-bearer grant type is not yet supported")
+		s.handleJWTBearerGrant(w, r)
 	case "":
 		writeOAuthError(w, http.StatusBadRequest, errInvalidRequest, "grant_type is required")
 	default:

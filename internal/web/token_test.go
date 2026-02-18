@@ -52,7 +52,7 @@ func TestTokenEndpointUnsupportedGrantType(t *testing.T) {
 	}
 }
 
-func TestTokenEndpointJWTBearerNotSupported(t *testing.T) {
+func TestTokenEndpointJWTBearerMissingParams(t *testing.T) {
 	srv := newTestServer(t, true)
 
 	form := url.Values{"grant_type": {"urn:ietf:params:oauth:grant-type:jwt-bearer"}}
@@ -67,8 +67,8 @@ func TestTokenEndpointJWTBearerNotSupported(t *testing.T) {
 
 	var body oauthError
 	json.NewDecoder(w.Body).Decode(&body)
-	if body.Error != errInvalidGrant {
-		t.Errorf("error = %q, want %q", body.Error, errInvalidGrant)
+	if body.Error != errInvalidRequest {
+		t.Errorf("error = %q, want %q", body.Error, errInvalidRequest)
 	}
 }
 

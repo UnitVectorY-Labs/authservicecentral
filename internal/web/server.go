@@ -56,6 +56,42 @@ func (s *Server) routes() {
 		s.mux.HandleFunc("GET /admin/logout", s.handleLogout)
 		s.mux.HandleFunc("GET /admin/{$}", s.requireAuth(s.handleAdminHome))
 		s.mux.HandleFunc("GET /admin/apps", s.requireAuth(s.handleAppsList))
+
+		// Application CRUD
+		s.mux.HandleFunc("GET /admin/apps/new", s.requireAuth(s.handleAppsNew))
+		s.mux.HandleFunc("POST /admin/apps/new", s.requireAuth(s.handleAppsCreate))
+		s.mux.HandleFunc("GET /admin/apps/{subject}", s.requireAuth(s.handleAppDetail))
+		s.mux.HandleFunc("POST /admin/apps/{subject}", s.requireAuth(s.handleAppUpdate))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/scopes", s.requireAuth(s.handleScopeCreate))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/scopes/delete", s.requireAuth(s.handleScopeDelete))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/credentials", s.requireAuth(s.handleCredentialCreate))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/credentials/disable", s.requireAuth(s.handleCredentialDisable))
+
+		// Outbound authorizations
+		s.mux.HandleFunc("GET /admin/apps/{subject}/authorizations/new", s.requireAuth(s.handleAuthorizationNew))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/authorizations/new", s.requireAuth(s.handleAuthorizationCreate))
+		s.mux.HandleFunc("GET /admin/apps/{subject}/authorizations/{audience}", s.requireAuth(s.handleAuthorizationDetail))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/authorizations/{audience}", s.requireAuth(s.handleAuthorizationUpdate))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/authorizations/{audience}/delete", s.requireAuth(s.handleAuthorizationDelete))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/authorizations/{audience}/scopes", s.requireAuth(s.handleAuthorizationScopeAdd))
+		s.mux.HandleFunc("POST /admin/apps/{subject}/authorizations/{audience}/scopes/delete", s.requireAuth(s.handleAuthorizationScopeRemove))
+
+		// Identity Providers
+		s.mux.HandleFunc("GET /admin/providers", s.requireAuth(s.handleProvidersList))
+		s.mux.HandleFunc("GET /admin/providers/new", s.requireAuth(s.handleProviderNew))
+		s.mux.HandleFunc("POST /admin/providers/new", s.requireAuth(s.handleProviderCreate))
+		s.mux.HandleFunc("GET /admin/providers/{id}", s.requireAuth(s.handleProviderDetail))
+		s.mux.HandleFunc("POST /admin/providers/{id}", s.requireAuth(s.handleProviderUpdate))
+		s.mux.HandleFunc("POST /admin/providers/{id}/delete", s.requireAuth(s.handleProviderDelete))
+
+		// Workloads (nested under providers)
+		s.mux.HandleFunc("GET /admin/providers/{id}/workloads/new", s.requireAuth(s.handleWorkloadNew))
+		s.mux.HandleFunc("POST /admin/providers/{id}/workloads/new", s.requireAuth(s.handleWorkloadCreate))
+		s.mux.HandleFunc("GET /admin/providers/{id}/workloads/{workloadID}", s.requireAuth(s.handleWorkloadDetail))
+		s.mux.HandleFunc("POST /admin/providers/{id}/workloads/{workloadID}", s.requireAuth(s.handleWorkloadUpdate))
+		s.mux.HandleFunc("POST /admin/providers/{id}/workloads/{workloadID}/delete", s.requireAuth(s.handleWorkloadDelete))
+		s.mux.HandleFunc("POST /admin/providers/{id}/workloads/{workloadID}/link", s.requireAuth(s.handleWorkloadLink))
+		s.mux.HandleFunc("POST /admin/providers/{id}/workloads/{workloadID}/unlink", s.requireAuth(s.handleWorkloadUnlink))
 	}
 
 	// Health check
