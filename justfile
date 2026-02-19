@@ -26,7 +26,8 @@ migrate:
 
 # Start the server
 serve:
-  go run . run
+  if [ ! -f dev-key.pem ]; then openssl genpkey -algorithm RSA -out dev-key.pem -pkeyopt rsa_keygen_bits:2048; fi
+  go run . run --jwt-signing-key-file dev-key.pem --bootstrap-admin-password admin
 
 # Run a local Postgres container for development
 postgres-container:

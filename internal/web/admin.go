@@ -42,18 +42,11 @@ func parseTemplates(names ...string) *template.Template {
 	return template.Must(template.ParseFS(templateFS, files...))
 }
 
-// renderPage renders a full page or just the #main content depending on the HX-Request header
+// renderPage renders a full page.
+// HTMX boosted navigation targets the full document body, so full-page responses keep
+// shared layout, navigation state, and title updates consistent across transitions.
 func renderPage(w http.ResponseWriter, r *http.Request, tmpl *template.Template, data interface{}) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if r.Header.Get("HX-Request") == "true" {
-		// Partial render: just the content block
-		if err := tmpl.ExecuteTemplate(w, "content", data); err != nil {
-			log.Printf("error rendering partial template: %v", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		}
-		return
-	}
-	// Full page render
 	if err := tmpl.Execute(w, data); err != nil {
 		log.Printf("error rendering template: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)

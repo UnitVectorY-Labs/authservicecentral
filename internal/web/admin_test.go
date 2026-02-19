@@ -156,6 +156,35 @@ func TestAdminHomeRendersWhenAuthenticated(t *testing.T) {
 	}
 }
 
+func TestAdminHomeHTMXRequestReturnsFullPage(t *testing.T) {
+	srv := newTestServer(t, false)
+	srv.cfg.ControlPlaneEnabled = true
+	srv.mux = http.NewServeMux()
+	srv.routes()
+
+	cookie := createSessionCookie(srv.sessionSecret, "admin")
+	req := httptest.NewRequest("GET", "/admin/", nil)
+	req.AddCookie(cookie)
+	req.Header.Set("HX-Request", "true")
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	body := w.Body.String()
+	if !containsSubstring(body, `<header`) {
+		t.Error(`expected boosted response to include full layout header`)
+	}
+	if !containsSubstring(body, `<main`) {
+		t.Error(`expected boosted response to include main content container`)
+	}
+	if !containsSubstring(body, "Admin Dashboard") {
+		t.Error(`expected boosted response to include page content`)
+	}
+}
+
 func TestControlPlaneDisabled(t *testing.T) {
 	srv := newTestServer(t, false)
 	// ControlPlaneEnabled is false by default in newTestServer
