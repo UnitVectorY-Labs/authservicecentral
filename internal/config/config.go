@@ -145,11 +145,20 @@ func ParseMigrateFlags(args []string) (*Config, string, error) {
 
 	ParseDBFlags(fs, cfg)
 
-	if err := fs.Parse(args); err != nil {
+	parseArgs := args
+	direction := ""
+	if len(args) > 0 && (args[0] == "up" || args[0] == "down") {
+		direction = args[0]
+		parseArgs = args[1:]
+	}
+
+	if err := fs.Parse(parseArgs); err != nil {
 		return nil, "", err
 	}
 
-	direction := fs.Arg(0)
+	if direction == "" {
+		direction = fs.Arg(0)
+	}
 	if direction != "up" && direction != "down" {
 		return nil, "", fmt.Errorf("migrate requires direction: up or down")
 	}

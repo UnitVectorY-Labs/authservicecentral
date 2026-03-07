@@ -148,6 +148,47 @@ func TestParseMigrateFlags(t *testing.T) {
 	}
 }
 
+func TestParseMigrateFlagsEnvVars(t *testing.T) {
+	os.Setenv("DB_HOST", "envhost")
+	os.Setenv("DB_PORT", "6543")
+	defer func() {
+		os.Unsetenv("DB_HOST")
+		os.Unsetenv("DB_PORT")
+	}()
+
+	cfg, dir, err := ParseMigrateFlags([]string{"up"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if dir != "up" {
+		t.Errorf("direction = %q, want %q", dir, "up")
+	}
+	if cfg.DBHost != "envhost" {
+		t.Errorf("DBHost = %q, want %q", cfg.DBHost, "envhost")
+	}
+	if cfg.DBPort != 6543 {
+		t.Errorf("DBPort = %d, want %d", cfg.DBPort, 6543)
+	}
+}
+
+func TestParseMigrateFlagsDirectionFirstFlagOverridesEnv(t *testing.T) {
+	os.Setenv("DB_HOST", "envhost")
+	defer os.Unsetenv("DB_HOST")
+
+	cfg, dir, err := ParseMigrateFlags([]string{"up", "--db-host", "flaghost"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if dir != "up" {
+		t.Errorf("direction = %q, want %q", dir, "up")
+	}
+	if cfg.DBHost != "flaghost" {
+		t.Errorf("DBHost = %q, want %q", cfg.DBHost, "flaghost")
+	}
+}
+
 func TestParseMigrateFlagsInvalidDirection(t *testing.T) {
 	_, _, err := ParseMigrateFlags([]string{"sideways"})
 	if err == nil {
