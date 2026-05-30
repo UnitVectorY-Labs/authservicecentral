@@ -84,10 +84,7 @@ func (s *Server) handleProvidersList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	totalPages := (total + providersPerPage - 1) / providersPerPage
-	if totalPages < 1 {
-		totalPages = 1
-	}
+	totalPages := max((total+providersPerPage-1)/providersPerPage, 1)
 
 	startItem := offset + 1
 	endItem := offset + len(providers)
@@ -159,9 +156,9 @@ func (s *Server) handleProviderCreate(w http.ResponseWriter, r *http.Request) {
 		r,
 		"create",
 		"identity_provider",
-		map[string]interface{}{"id": provider.ID},
+		map[string]any{"id": provider.ID},
 		nil,
-		map[string]interface{}{"id": provider.ID, "name": provider.Name, "issuer_url": provider.IssuerURL, "jwks_url": provider.JWKSURL.String},
+		map[string]any{"id": provider.ID, "name": provider.Name, "issuer_url": provider.IssuerURL, "jwks_url": provider.JWKSURL.String},
 		nil,
 	)
 
@@ -248,9 +245,9 @@ func (s *Server) handleProviderUpdate(w http.ResponseWriter, r *http.Request) {
 		r,
 		"update",
 		"identity_provider",
-		map[string]interface{}{"id": provider.ID},
-		map[string]interface{}{"name": provider.Name, "issuer_url": provider.IssuerURL, "jwks_url": provider.JWKSURL.String},
-		map[string]interface{}{"name": name, "issuer_url": issuerURL, "jwks_url": jwksURL},
+		map[string]any{"id": provider.ID},
+		map[string]any{"name": provider.Name, "issuer_url": provider.IssuerURL, "jwks_url": provider.JWKSURL.String},
+		map[string]any{"name": name, "issuer_url": issuerURL, "jwks_url": jwksURL},
 		nil,
 	)
 
@@ -280,8 +277,8 @@ func (s *Server) handleProviderDelete(w http.ResponseWriter, r *http.Request) {
 		r,
 		"delete",
 		"identity_provider",
-		map[string]interface{}{"id": provider.ID},
-		map[string]interface{}{"name": provider.Name, "issuer_url": provider.IssuerURL, "jwks_url": provider.JWKSURL.String},
+		map[string]any{"id": provider.ID},
+		map[string]any{"name": provider.Name, "issuer_url": provider.IssuerURL, "jwks_url": provider.JWKSURL.String},
 		nil,
 		nil,
 	)
@@ -380,9 +377,9 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 		r,
 		"create",
 		"workload",
-		map[string]interface{}{"id": workload.ID},
+		map[string]any{"id": workload.ID},
 		nil,
-		map[string]interface{}{"id": workload.ID, "identity_provider_id": workload.IdentityProviderID, "name": workload.Name, "selector": selectorStr},
+		map[string]any{"id": workload.ID, "identity_provider_id": workload.IdentityProviderID, "name": workload.Name, "selector": selectorStr},
 		nil,
 	)
 
@@ -537,9 +534,9 @@ func (s *Server) handleWorkloadUpdate(w http.ResponseWriter, r *http.Request) {
 		r,
 		"update",
 		"workload",
-		map[string]interface{}{"id": workload.ID},
-		map[string]interface{}{"name": workload.Name, "selector": string(workload.Selector)},
-		map[string]interface{}{"name": name, "selector": selectorStr},
+		map[string]any{"id": workload.ID},
+		map[string]any{"name": workload.Name, "selector": string(workload.Selector)},
+		map[string]any{"name": name, "selector": selectorStr},
 		nil,
 	)
 
@@ -574,8 +571,8 @@ func (s *Server) handleWorkloadDelete(w http.ResponseWriter, r *http.Request) {
 		r,
 		"delete",
 		"workload",
-		map[string]interface{}{"id": workload.ID},
-		map[string]interface{}{"identity_provider_id": workload.IdentityProviderID, "name": workload.Name, "selector": string(workload.Selector)},
+		map[string]any{"id": workload.ID},
+		map[string]any{"identity_provider_id": workload.IdentityProviderID, "name": workload.Name, "selector": string(workload.Selector)},
 		nil,
 		nil,
 	)

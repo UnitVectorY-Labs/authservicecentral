@@ -33,7 +33,7 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 	reason := "invalid request"
 	var subjectApplicationID *int64
 	var audienceApplicationID *int64
-	defer s.recordDataPlaneAudit(r, subjectApplicationID, audienceApplicationID, requestedScopes, decision, reason, map[string]interface{}{
+	defer s.recordDataPlaneAudit(r, subjectApplicationID, audienceApplicationID, requestedScopes, decision, reason, map[string]any{
 		"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
 		"client_id":  clientID,
 		"audience":   audience,
@@ -76,7 +76,7 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 		writeOAuthError(w, http.StatusUnauthorized, errInvalidClient, "subject application is locked")
 		return
 	}
-	subjectApplicationID = int64Ptr(subjectApp.ID)
+	subjectApplicationID = new(subjectApp.ID)
 
 	// Look up the audience application
 	audienceApp, err := database.LookupApplicationBySubject(ctx, s.db, audience)
@@ -96,7 +96,7 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 		writeOAuthError(w, http.StatusForbidden, errAccessDenied, "audience application is locked")
 		return
 	}
-	audienceApplicationID = int64Ptr(audienceApp.ID)
+	audienceApplicationID = new(audienceApp.ID)
 
 	// Check authorization
 	auth, err := database.LookupAuthorization(ctx, s.db, subjectApp.ID, audienceApp.ID)
@@ -268,7 +268,7 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build the response
-	response := map[string]interface{}{
+	response := map[string]any{
 		"access_token": token,
 		"token_type":   "Bearer",
 		"expires_in":   int(s.cfg.JWTTTL.Seconds()),
@@ -284,7 +284,7 @@ func (s *Server) handleJWTBearerGrant(w http.ResponseWriter, r *http.Request) {
 
 // parseJWTWithoutVerification splits a JWT and decodes the header and claims.
 // Returns header map, claims map, and the raw parts for signature verification.
-func parseJWTWithoutVerification(tokenStr string) (header map[string]interface{}, claims map[string]interface{}, parts []string, err error) {
+func parseJWTWithoutVerification(tokenStr string) (header map[string]any, claims map[string]any, parts []string, err error) {
 	parts = strings.Split(tokenStr, ".")
 	if len(parts) != 3 {
 		return nil, nil, nil, fmt.Errorf("invalid JWT: expected 3 parts, got %d", len(parts))
@@ -523,12 +523,12 @@ func ecHashFunc(alg string) (func() hash.Hash, error) {
 }
 
 // matchSelector checks if JWT claims match the workload selector.
-func matchSelector(claims map[string]interface{}, selector json.RawMessage) bool {
+func matchSelector(claims map[string]any, selector json.RawMessage) bool {
 	if len(selector) == 0 {
 		return true
 	}
 
-	var selectorMap map[string]interface{}
+	var selectorMap map[string]any
 	if err := json.Unmarshal(selector, &selectorMap); err != nil {
 		return false
 	}

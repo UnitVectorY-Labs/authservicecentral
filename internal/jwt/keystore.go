@@ -8,8 +8,8 @@ import (
 
 // KeyStore holds the loaded signing and verification keys
 type KeyStore struct {
-	SigningKey   *Key   // active signing key (private)
-	AllKeys     []*Key // all keys for JWKS endpoint
+	SigningKey *Key   // active signing key (private)
+	AllKeys    []*Key // all keys for JWKS endpoint
 }
 
 // LoadKeyStore loads all keys from the configuration
@@ -55,12 +55,12 @@ func LoadKeyStore(cfg *config.Config) (*KeyStore, error) {
 }
 
 // JWKS returns the JSON Web Key Set representation
-func (ks *KeyStore) JWKS() map[string]interface{} {
-	keys := make([]map[string]interface{}, 0, len(ks.AllKeys))
+func (ks *KeyStore) JWKS() map[string]any {
+	keys := make([]map[string]any, 0, len(ks.AllKeys))
 	for _, k := range ks.AllKeys {
 		keys = append(keys, k.JWKPublic())
 	}
-	return map[string]interface{}{
+	return map[string]any{
 		"keys": keys,
 	}
 }

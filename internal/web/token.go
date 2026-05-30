@@ -39,7 +39,7 @@ func (s *Server) handleClientCredentialsGrant(w http.ResponseWriter, r *http.Req
 	reason := "invalid request"
 	var subjectApplicationID *int64
 	var audienceApplicationID *int64
-	defer s.recordDataPlaneAudit(r, subjectApplicationID, audienceApplicationID, requestedScopes, decision, reason, map[string]interface{}{
+	defer s.recordDataPlaneAudit(r, subjectApplicationID, audienceApplicationID, requestedScopes, decision, reason, map[string]any{
 		"grant_type": "client_credentials",
 		"client_id":  clientID,
 		"audience":   audience,
@@ -82,7 +82,7 @@ func (s *Server) handleClientCredentialsGrant(w http.ResponseWriter, r *http.Req
 		writeOAuthError(w, http.StatusUnauthorized, errInvalidClient, "invalid client credentials")
 		return
 	}
-	subjectApplicationID = int64Ptr(cred.ApplicationID)
+	subjectApplicationID = new(cred.ApplicationID)
 
 	// Check if credential is disabled
 	if cred.DisabledAt.Valid {
@@ -111,7 +111,7 @@ func (s *Server) handleClientCredentialsGrant(w http.ResponseWriter, r *http.Req
 		writeOAuthError(w, http.StatusUnauthorized, errInvalidClient, "subject application is unavailable")
 		return
 	}
-	subjectApplicationID = int64Ptr(subjectApp.ID)
+	subjectApplicationID = new(subjectApp.ID)
 
 	// Look up the audience application
 	audienceApp, err := database.LookupApplicationBySubject(ctx, s.db, audience)
@@ -131,7 +131,7 @@ func (s *Server) handleClientCredentialsGrant(w http.ResponseWriter, r *http.Req
 		writeOAuthError(w, http.StatusForbidden, errAccessDenied, "audience application is locked")
 		return
 	}
-	audienceApplicationID = int64Ptr(audienceApp.ID)
+	audienceApplicationID = new(audienceApp.ID)
 
 	// Check authorization
 	auth, err := database.LookupAuthorization(ctx, s.db, subjectApp.ID, audienceApp.ID)
@@ -205,7 +205,7 @@ func (s *Server) handleClientCredentialsGrant(w http.ResponseWriter, r *http.Req
 	}
 
 	// Build the response
-	response := map[string]interface{}{
+	response := map[string]any{
 		"access_token": token,
 		"token_type":   "Bearer",
 		"expires_in":   int(s.cfg.JWTTTL.Seconds()),

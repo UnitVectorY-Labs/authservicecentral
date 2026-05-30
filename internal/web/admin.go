@@ -45,7 +45,7 @@ func parseTemplates(names ...string) *template.Template {
 // renderPage renders a full page.
 // HTMX boosted navigation targets the full document body, so full-page responses keep
 // shared layout, navigation state, and title updates consistent across transitions.
-func renderPage(w http.ResponseWriter, r *http.Request, tmpl *template.Template, data interface{}) {
+func renderPage(w http.ResponseWriter, r *http.Request, tmpl *template.Template, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := tmpl.Execute(w, data); err != nil {
 		log.Printf("error rendering template: %v", err)
@@ -248,10 +248,7 @@ func (s *Server) handleAppsList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	totalPages := (total + appsPerPage - 1) / appsPerPage
-	if totalPages < 1 {
-		totalPages = 1
-	}
+	totalPages := max((total+appsPerPage-1)/appsPerPage, 1)
 
 	startItem := offset + 1
 	endItem := offset + len(apps)
@@ -342,9 +339,9 @@ func (s *Server) handleAppsCreate(w http.ResponseWriter, r *http.Request) {
 		r,
 		"create",
 		"application",
-		map[string]interface{}{"id": app.ID, "subject": app.Subject},
+		map[string]any{"id": app.ID, "subject": app.Subject},
 		nil,
-		map[string]interface{}{
+		map[string]any{
 			"id":          app.ID,
 			"subject":     app.Subject,
 			"description": description,
@@ -476,9 +473,9 @@ func (s *Server) handleAppUpdate(w http.ResponseWriter, r *http.Request) {
 		r,
 		"update",
 		"application",
-		map[string]interface{}{"id": app.ID, "subject": app.Subject},
-		map[string]interface{}{"description": app.Description.String, "locked": app.Locked},
-		map[string]interface{}{"description": description, "locked": locked},
+		map[string]any{"id": app.ID, "subject": app.Subject},
+		map[string]any{"description": app.Description.String, "locked": app.Locked},
+		map[string]any{"description": description, "locked": locked},
 		nil,
 	)
 

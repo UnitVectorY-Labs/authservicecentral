@@ -124,9 +124,9 @@ func (s *Server) handleAuthorizationCreate(w http.ResponseWriter, r *http.Reques
 		r,
 		"create",
 		"authorization",
-		map[string]interface{}{"subject_application_id": subjectApp.ID, "audience_application_id": audienceApp.ID},
+		map[string]any{"subject_application_id": subjectApp.ID, "audience_application_id": audienceApp.ID},
 		nil,
-		map[string]interface{}{
+		map[string]any{
 			"subject_application_id":  subjectApp.ID,
 			"audience_application_id": audienceApp.ID,
 			"enabled":                 true,
@@ -250,9 +250,9 @@ func (s *Server) handleAuthorizationUpdate(w http.ResponseWriter, r *http.Reques
 		r,
 		"update",
 		"authorization",
-		map[string]interface{}{"subject_application_id": subjectApp.ID, "audience_application_id": audienceApp.ID},
-		map[string]interface{}{"enabled": auth.Enabled},
-		map[string]interface{}{"enabled": enabled},
+		map[string]any{"subject_application_id": subjectApp.ID, "audience_application_id": audienceApp.ID},
+		map[string]any{"enabled": auth.Enabled},
+		map[string]any{"enabled": enabled},
 		nil,
 	)
 
@@ -296,8 +296,8 @@ func (s *Server) handleAuthorizationDelete(w http.ResponseWriter, r *http.Reques
 		r,
 		"delete",
 		"authorization",
-		map[string]interface{}{"subject_application_id": subjectApp.ID, "audience_application_id": audienceApp.ID},
-		map[string]interface{}{"enabled": auth.Enabled},
+		map[string]any{"subject_application_id": subjectApp.ID, "audience_application_id": audienceApp.ID},
+		map[string]any{"enabled": auth.Enabled},
 		nil,
 		nil,
 	)

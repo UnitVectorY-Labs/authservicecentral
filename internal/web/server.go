@@ -118,10 +118,10 @@ func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleOpenIDConfiguration(w http.ResponseWriter, r *http.Request) {
 	issuer := s.cfg.JWTIssuer
-	response := map[string]interface{}{
-		"issuer":                issuer,
-		"jwks_uri":             issuer + "/.well-known/jwks.json",
-		"token_endpoint":       issuer + "/v1/token",
+	response := map[string]any{
+		"issuer":         issuer,
+		"jwks_uri":       issuer + "/.well-known/jwks.json",
+		"token_endpoint": issuer + "/v1/token",
 		"grant_types_supported": []string{
 			"client_credentials",
 			"urn:ietf:params:oauth:grant-type:jwt-bearer",
@@ -138,7 +138,7 @@ func (s *Server) handleJWKS(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(jwks)
 }
 
-func writeJSON(w http.ResponseWriter, statusCode int, v interface{}) {
+func writeJSON(w http.ResponseWriter, statusCode int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(statusCode)
