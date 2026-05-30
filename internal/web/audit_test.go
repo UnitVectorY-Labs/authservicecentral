@@ -25,6 +25,6 @@ func TestTruncateAuditString(t *testing.T) {
 func TestRecordAuditNoDB(t *testing.T) {
 	srv := newTestServer(t, false)
 	req := httptest.NewRequest("GET", "/", nil)
-	srv.recordControlPlaneAudit(req, "update", "application", map[string]interface{}{"id": 1}, nil, nil, nil)
+	srv.recordControlPlaneAudit(req, "update", "application", map[string]any{"id": 1}, nil, nil, nil)
 	srv.recordDataPlaneAudit(req, nil, nil, nil, "deny", "invalid request", nil)
 }

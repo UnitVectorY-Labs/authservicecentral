@@ -77,7 +77,7 @@ func TestOpenIDConfiguration(t *testing.T) {
 		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
 	}
 
-	var body map[string]interface{}
+	var body map[string]any
 	json.NewDecoder(w.Body).Decode(&body)
 
 	if body["issuer"] != "https://auth.example.com" {
@@ -90,7 +90,7 @@ func TestOpenIDConfiguration(t *testing.T) {
 		t.Errorf("token_endpoint = %v", body["token_endpoint"])
 	}
 
-	grants, ok := body["grant_types_supported"].([]interface{})
+	grants, ok := body["grant_types_supported"].([]any)
 	if !ok || len(grants) != 2 {
 		t.Errorf("grant_types_supported = %v", body["grant_types_supported"])
 	}
@@ -111,15 +111,15 @@ func TestJWKSEndpoint(t *testing.T) {
 		t.Errorf("Content-Type = %q, want %q", ct, "application/json")
 	}
 
-	var body map[string]interface{}
+	var body map[string]any
 	json.NewDecoder(w.Body).Decode(&body)
 
-	keys, ok := body["keys"].([]interface{})
+	keys, ok := body["keys"].([]any)
 	if !ok || len(keys) != 1 {
 		t.Fatalf("keys = %v, want 1 key", body["keys"])
 	}
 
-	key := keys[0].(map[string]interface{})
+	key := keys[0].(map[string]any)
 	if key["kty"] != "RSA" {
 		t.Errorf("kty = %v, want RSA", key["kty"])
 	}
@@ -153,10 +153,10 @@ func TestJWKSEndpointMultipleKeys(t *testing.T) {
 	w := httptest.NewRecorder()
 	srv.ServeHTTP(w, req)
 
-	var body map[string]interface{}
+	var body map[string]any
 	json.NewDecoder(w.Body).Decode(&body)
 
-	keys := body["keys"].([]interface{})
+	keys := body["keys"].([]any)
 	if len(keys) != 2 {
 		t.Errorf("expected 2 keys, got %d", len(keys))
 	}

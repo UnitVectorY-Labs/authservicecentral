@@ -288,10 +288,10 @@ func CreateControlPlaneAuditLog(
 	ctx context.Context,
 	db *sql.DB,
 	actorType, actorID, actorIP, actorUserAgent, action, targetType string,
-	targetPK, before, after, metadata interface{},
+	targetPK, before, after, metadata any,
 ) error {
 	if targetPK == nil {
-		targetPK = map[string]interface{}{}
+		targetPK = map[string]any{}
 	}
 
 	targetPKJSON, err := json.Marshal(targetPK)
@@ -339,22 +339,22 @@ func CreateDataPlaneAuditLog(
 	subjectApplicationID, audienceApplicationID *int64,
 	scopes []string,
 	decision, reason, requestID string,
-	details interface{},
+	details any,
 ) error {
 	detailsJSON, err := marshalOptionalJSON(details)
 	if err != nil {
 		return fmt.Errorf("marshal details: %w", err)
 	}
 
-	var subjectIDValue interface{}
+	var subjectIDValue any
 	if subjectApplicationID != nil {
 		subjectIDValue = *subjectApplicationID
 	}
-	var audienceIDValue interface{}
+	var audienceIDValue any
 	if audienceApplicationID != nil {
 		audienceIDValue = *audienceApplicationID
 	}
-	var scopesValue interface{}
+	var scopesValue any
 	if len(scopes) > 0 {
 		scopesValue = scopes
 	}
@@ -377,14 +377,14 @@ func CreateDataPlaneAuditLog(
 	return nil
 }
 
-func marshalOptionalJSON(v interface{}) ([]byte, error) {
+func marshalOptionalJSON(v any) ([]byte, error) {
 	if v == nil {
 		return nil, nil
 	}
 	return json.Marshal(v)
 }
 
-func nullableString(v string) interface{} {
+func nullableString(v string) any {
 	if v == "" {
 		return nil
 	}

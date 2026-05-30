@@ -141,8 +141,8 @@ func ParsePublicKey(data []byte) (*Key, error) {
 }
 
 // JWKPublic returns the JWK representation of the public key
-func (k *Key) JWKPublic() map[string]interface{} {
-	jwk := map[string]interface{}{
+func (k *Key) JWKPublic() map[string]any {
+	jwk := map[string]any{
 		"kty": "",
 		"use": "sig",
 		"kid": k.Kid,
