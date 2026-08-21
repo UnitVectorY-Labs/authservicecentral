@@ -1,4 +1,4 @@
-This is a Go application that provides an OAuth 2.0 authorization server for a data plane as well as a HTMX based user interface for managing the authorizations for the control plane.
+A Go-based authorization and token exchange service that unifies human and workload identities, issues audience-scoped JWTs, and uses OpenFGA for configurable fine-grained, resource-level permissions.
 
 The main.go file is the entry point and the rest of the code is organized under the `internal/` directory. Any external files needed by the application such as a database schema / migration files and the HTML templates and other resources are to be included in the compiled binary using the embed package.
 
@@ -10,36 +10,10 @@ The main application web is launched using the "run" sub-command.
 - Docker for containerization
 - PostgreSQL for database storage
 - Database migrations handled with "migrate" sub-command using `golang-migrate/migrate` library
-- HTMX for dynamic web components
-- Tailwind CSS CLI for build-time stylesheet generation only (compiled CSS is committed and embedded)
+- https://openfga.dev/ used for authorization built in using Go.
 - No additional JavaScript frameworks beyond HTMX (radical simplicity as design philosophy)
 
 Minimize the use of external dependencies relying on the Go standard library as much as possible.
-
-Tailwind is used only to generate CSS at build time. This is not a JavaScript project.
-
-- Use Tailwind CLI to compile tailwind.css into a single committed stylesheet.
-- The generated CSS must not be minified.
-- Do not add or commit JavaScript project artifacts: package.json, lockfiles, node_modules/, PostCSS configs, etc.
-- On Ubuntu, prefer the standalone Tailwind binary install. If you do use Node, use it only to run the Tailwind command.
-
-CLI build command:
-
-```
-tailwindcss -i ./internal/web/static/tailwind.css -o ./internal/web/static/style.css
-```
-
-npx example (no project setup, no files committed):
-
-```
-npx --yes tailwindcss@3.4.17 \
-  -i ./internal/web/static/tailwind.css \
-  -o ./internal/web/static/style.css
-```
-
-The icons used by this project are embedded SVGs taken from https://github.com/tabler/tabler-icons and are included as inline SVG in the HTML templates.
-
-Environment variables are paired with command line flags for all configuration options to allow flexibility in deployment and usage. These are all clearly documented alongside the commands they apply to in `docs/`.
 
 ## Documentation
 

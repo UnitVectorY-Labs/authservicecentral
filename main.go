@@ -5,8 +5,6 @@ import (
 	"log"
 	"os"
 	"runtime/debug"
-
-	"github.com/UnitVectorY-Labs/authservicecentral/internal/cmd"
 )
 
 // Version is the application version, injected at build time via ldflags
@@ -30,8 +28,8 @@ func main() {
 	var err error
 
 	switch os.Args[1] {
-	case "run":
-		err = cmd.Run(os.Args[2:])
+	case "web":
+		err = cmd.Web(os.Args[2:])
 	case "migrate":
 		err = cmd.Migrate(os.Args[2:])
 	case "version":

@@ -1,3 +1,3 @@
 # authservicecentral
 
-Centralized OAuth 2.0 authorization for service-to-service JWT access tokens, with explicit audience and scope-based access control.
+A Go-based authorization and token exchange service that unifies human and workload identities, issues audience-scoped JWTs, and uses OpenFGA for configurable fine-grained, resource-level permissions.
