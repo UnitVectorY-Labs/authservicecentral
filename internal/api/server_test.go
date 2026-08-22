@@ -7,8 +7,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 type fakeAuth struct{}
@@ -204,6 +207,51 @@ func TestSwaggerUIIsOptionalAndServesTheEmbeddedContract(t *testing.T) {
 	w = perform(with, http.MethodGet, "/swagger-ui/swagger-ui.css", "", "")
 	if w.Code != http.StatusOK || !strings.Contains(w.Header().Get("Content-Type"), "text/css") {
 		t.Fatalf("embedded Swagger asset: %d %s", w.Code, w.Header().Get("Content-Type"))
+	}
+}
+
+func TestServedOpenAPIDocumentUsesConfiguredIssuer(t *testing.T) {
+	spec := "openapi: 3.1.0\ninfo:\n  title: test\nservers:\n  - url: \"{scheme}://{host}:{port}\"\n    description: Deployment base URL\n    variables:\n      scheme:\n        default: http\n        enum: [http, https]\n        description: Transport scheme used by the deployment.\n      host:\n        default: localhost\n        description: Hostname where the service is reachable.\n      port:\n        default: \"8080\"\n        description: Listening TCP port.\nsecurity: []\npaths: {}\n"
+	s := newTestServer(t, &fakeBackend{}, Options{SwaggerUI: true, OpenAPISpec: []byte(spec), Issuer: "https://auth.example.com"})
+	w := perform(s, http.MethodGet, "/openapi.yaml", "", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("OpenAPI document: %d %s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if want := "servers:\n  - url: https://auth.example.com\n    description: Deployment base URL\nsecurity: []"; !strings.Contains(body, want) {
+		t.Fatalf("served document missing issuer servers block:\n%s", body)
+	}
+	if strings.Contains(body, "localhost") || strings.Contains(body, "{scheme}") {
+		t.Fatalf("served document still references the template servers:\n%s", body)
+	}
+
+	plain := newTestServer(t, &fakeBackend{}, Options{SwaggerUI: true, OpenAPISpec: []byte("openapi: 3.1.0\ninfo:\n  title: test\n")})
+	w = perform(plain, http.MethodGet, "/openapi.yaml", "", "")
+	if w.Code != http.StatusOK || w.Body.String() != "openapi: 3.1.0\ninfo:\n  title: test\n" {
+		t.Fatalf("spec without a servers block should be unchanged: %d %q", w.Code, w.Body.String())
+	}
+}
+
+func TestIssuerSubstitutionAppliesToCanonicalSpecification(t *testing.T) {
+	canonical, err := os.ReadFile("../../openapi.yaml")
+	if err != nil {
+		t.Skipf("canonical specification not available: %v", err)
+	}
+	s := newTestServer(t, &fakeBackend{}, Options{SwaggerUI: true, OpenAPISpec: canonical, Issuer: "https://auth.example.com"})
+	w := perform(s, http.MethodGet, "/openapi.yaml", "", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("OpenAPI document: %d %s", w.Code, w.Body.String())
+	}
+	var doc struct {
+		Servers []struct {
+			URL string `yaml:"url"`
+		} `yaml:"servers"`
+	}
+	if err := yaml.Unmarshal(w.Body.Bytes(), &doc); err != nil {
+		t.Fatalf("served document is not valid YAML: %v", err)
+	}
+	if len(doc.Servers) != 1 || doc.Servers[0].URL != "https://auth.example.com" {
+		t.Fatalf("served servers entry: %#v", doc.Servers)
 	}
 }
 

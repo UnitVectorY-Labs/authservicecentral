@@ -81,7 +81,10 @@ paths:
       tags: [Documentation]
       operationId: getOpenAPISpecification
       summary: Return the embedded OpenAPI document
-      description: Returns the canonical YAML document used by the interactive API reference.
+      description: |
+        Returns the canonical YAML document used by the interactive API
+        reference. The served document's `servers` entry is set to the
+        deployment's configured platform issuer.
       responses:
         "4XX":
           $ref: "#/components/responses/Error"

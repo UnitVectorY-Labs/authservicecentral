@@ -51,7 +51,7 @@ Starts the HTTP server and the periodic authorization outbox reconciler. It load
 
 The local signing provider requires `--signing-key-file`; the GCP KMS provider requires `--gcp-kms-key`. `run` never applies migrations. Stop the process with the platform’s normal interrupt or termination signal for graceful shutdown.
 
-When `--swagger-ui` is enabled, `GET /` serves the static Swagger UI shell and `GET /openapi.yaml` serves the embedded OpenAPI document. This surface is enabled by default and can be disabled with `SERVICEAUTH_SWAGGER_UI=false` or `--swagger-ui=false`.
+When `--swagger-ui` is enabled, `GET /` serves the static Swagger UI shell and `GET /openapi.yaml` serves the embedded OpenAPI document. The served document’s `servers` entry is substituted with the configured platform issuer (`--issuer` / `SERVICEAUTH_ISSUER`) so the API reference points at the deployment’s canonical host instead of the local default. This surface is enabled by default and can be disabled with `SERVICEAUTH_SWAGGER_UI=false` or `--swagger-ui=false`.
 
 ### `api`
 

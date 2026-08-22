@@ -52,7 +52,7 @@ Pass tokens as `Authorization: Bearer <token>`. The development-only `--insecure
 | `GET /health/ready` | None | Database, active-model, and signer readiness; returns `200` or `503`. |
 | `GET /metrics` | None | Prometheus text metrics when enabled. |
 | `GET /` | None | Swagger UI when `SERVICEAUTH_SWAGGER_UI`/`--swagger-ui` is enabled. |
-| `GET /openapi.yaml` | None | Embedded OpenAPI document when the Swagger surface is enabled. |
+| `GET /openapi.yaml` | None | Embedded OpenAPI document when the Swagger surface is enabled, with its `servers` entry set to the configured platform issuer. |
 
 Token exchange uses `application/x-www-form-urlencoded`:
 

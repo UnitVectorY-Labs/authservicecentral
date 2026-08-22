@@ -78,7 +78,7 @@ func BuildRuntime(ctx context.Context, op operational.Config, cfg *config.Config
 	exchanger := &token.Exchanger{Validator: ExchangeValidator{External: validator, Platform: parser}, Audiences: TokenAudienceLookup{Service: domain}, Permissions: TokenPermissionLookup{Service: domain}, Issuer: issuer}
 	ready := NewReadiness(store, fga, signingBundle.Active, fingerprint)
 	backend := &Backend{Service: domain, DB: store, Exchanger: exchanger, Issuer: issuer, ReadyState: ready, IssuerURL: op.Issuer, ReconcileBatch: op.ReconcileBatch}
-	handler, err := api.New(backend, PlatformAuthenticator{Parser: parser}, api.Options{MaxBatchSize: op.MaxBatchSize, InsecureManagement: op.ManagementOpen, ManagementAudience: op.ManagementAudience, ManagementPermissions: cfg.Management.ManagementPermissionMap(), SwaggerUI: op.SwaggerUI, Metrics: op.Metrics, RateLimitPerSecond: op.RateLimitPerSecond, RateLimitBurst: op.RateLimitBurst})
+	handler, err := api.New(backend, PlatformAuthenticator{Parser: parser}, api.Options{MaxBatchSize: op.MaxBatchSize, InsecureManagement: op.ManagementOpen, ManagementAudience: op.ManagementAudience, ManagementPermissions: cfg.Management.ManagementPermissionMap(), SwaggerUI: op.SwaggerUI, Issuer: op.Issuer, Metrics: op.Metrics, RateLimitPerSecond: op.RateLimitPerSecond, RateLimitBurst: op.RateLimitBurst})
 	if err != nil {
 		cleanupSigning()
 		return nil, err

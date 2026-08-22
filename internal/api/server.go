@@ -25,8 +25,12 @@ type Options struct {
 	// management.<family>.<operation> name.
 	ManagementPermissions map[string]string
 	// SwaggerUI enables the static API reference at / and /openapi.yaml.
-	SwaggerUI          bool
-	OpenAPISpec        []byte
+	SwaggerUI bool
+	// OpenAPISpec is the canonical embedded specification.
+	OpenAPISpec []byte
+	// Issuer is the canonical platform issuer URL. When set, the served
+	// OpenAPI document's servers entry is substituted with this URL.
+	Issuer             string
 	Metrics            bool
 	RateLimitPerSecond float64
 	RateLimitBurst     int
