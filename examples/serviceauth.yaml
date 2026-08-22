@@ -1,0 +1,90 @@
+version: 1
+
+token_sources:
+  corporate:
+    issuer: https://id.example.com
+    keys:
+      # Replace this block, or use discovery/jwks_url/inline jwks.
+      public_key: |
+        -----BEGIN PUBLIC KEY-----
+        REPLACE_WITH_SUBJECT_PUBLIC_KEY_INFO_PEM
+        -----END PUBLIC KEY-----
+    algorithms: [RS256]
+    identity:
+      subject_claim: sub
+      prefix: corporate
+    validation:
+      audience:
+        any_of: [https://auth.example.com]
+      claims:
+        organization:
+          equals: example
+    propagate_claims:
+      email:
+        from: email
+      organization:
+        from: organization
+
+permissions:
+  management.audiences.read: {resources: [audience]}
+  management.audiences.write: {resources: [audience]}
+  management.resources.read: {resources: [audience]}
+  management.resources.write: {resources: [audience]}
+  management.groups.read: {resources: [audience]}
+  management.groups.write: {resources: [audience]}
+  management.grants.read: {resources: [audience]}
+  management.grants.write: {resources: [audience]}
+  api.invoke:
+    resources: [audience]
+  folder.read:
+    resources: [folder]
+  document.read:
+    resources: [document]
+  document.write:
+    resources: [document]
+  video.view:
+    resources: [video]
+
+roles:
+  serviceauth_admin:
+    permissions:
+      - management.audiences.read
+      - management.audiences.write
+      - management.resources.read
+      - management.resources.write
+      - management.groups.read
+      - management.groups.write
+      - management.grants.read
+      - management.grants.write
+  reader:
+    permissions: [api.invoke, folder.read, document.read, video.view]
+  editor:
+    permissions: [api.invoke, folder.read, document.read, document.write, video.view]
+
+resources:
+  workspace:
+    relationships: {}
+  folder:
+    relationships:
+      parent:
+        targets: [workspace, folder]
+        cardinality: one
+        required: false
+  document:
+    relationships:
+      parent:
+        targets: [workspace, folder]
+        cardinality: one
+        required: false
+    inheritance:
+      - relationship: parent
+        permissions: [document.read]
+  video:
+    relationships:
+      parent:
+        targets: [folder]
+        cardinality: one
+        required: false
+    inheritance:
+      - relationship: parent
+        permissions: [video.view]

@@ -1,0 +1,843 @@
+openapi: 3.1.0
+info:
+  title: authservicecentral API
+  version: 1.0.0
+  description: |
+    Authorization and OAuth 2.0 token-exchange service. Management operations
+    require a platform JWT for the configured management audience and the
+    route-specific `management.*` permission.
+servers:
+  - url: http://localhost:8080
+    description: Default local server
+tags:
+  - name: Discovery
+  - name: OAuth
+  - name: Operations
+  - name: Authorization
+  - name: Audiences
+  - name: Resources
+  - name: Groups
+  - name: Grants
+paths:
+  /.well-known/oauth-authorization-server:
+    get:
+      tags: [Discovery]
+      operationId: getOAuthAuthorizationServerMetadata
+      summary: Return OAuth authorization-server metadata
+      responses:
+        "200":
+          description: OAuth metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthMetadata"
+        default:
+          $ref: "#/components/responses/Error"
+  /.well-known/jwks.json:
+    get:
+      tags: [Discovery]
+      operationId: getJWKS
+      summary: Return platform token verification keys
+      responses:
+        "200":
+          description: JSON Web Key Set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JWKS"
+        default:
+          $ref: "#/components/responses/Error"
+  /oauth2/token:
+    post:
+      tags: [OAuth]
+      operationId: exchangeToken
+      summary: Exchange a trusted JWT for an audience-scoped platform token
+      description: Implements OAuth 2.0 Token Exchange (RFC 8693). Actor fields are required together for delegated exchange.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/TokenExchangeRequest"
+      responses:
+        "200":
+          description: Issued platform access token
+          headers:
+            Cache-Control:
+              schema: {type: string, const: no-store}
+            Pragma:
+              schema: {type: string, const: no-cache}
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenExchangeResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        default:
+          $ref: "#/components/responses/Error"
+  /health/live:
+    get:
+      tags: [Operations]
+      operationId: getLiveness
+      summary: Report process liveness
+      responses:
+        "200":
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveStatus"
+  /health/ready:
+    get:
+      tags: [Operations]
+      operationId: getReadiness
+      summary: Check database, active model, and signer readiness
+      responses:
+        "200":
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyStatus"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /metrics:
+    get:
+      tags: [Operations]
+      operationId: getMetrics
+      summary: Return Prometheus text metrics
+      description: Present only when metrics are enabled.
+      responses:
+        "200":
+          description: Prometheus text exposition
+          content:
+            text/plain:
+              schema:
+                type: string
+  /v1/check:
+    post:
+      tags: [Authorization]
+      operationId: checkPermissions
+      summary: Batch-check resource permissions
+      description: The subject and optional actor are derived exclusively from the signed platform token. A legitimate denial is returned as HTTP 200 with `allowed` set to false.
+      security:
+        - platformBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckRequest"
+      responses:
+        "200":
+          description: Ordered authorization decisions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/audiences:
+    get:
+      tags: [Audiences]
+      operationId: listAudiences
+      summary: List audiences
+      description: Requires `management.audiences.read`.
+      security:
+        - managementBearer: []
+      responses:
+        "200":
+          description: Audience list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudienceList"
+        default:
+          $ref: "#/components/responses/ManagementError"
+    post:
+      tags: [Audiences]
+      operationId: putAudience
+      summary: Create or update an audience
+      description: Requires `management.audiences.write`. The audience ID is supplied in the body.
+      security:
+        - managementBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AudienceInput"
+      responses:
+        "201":
+          description: Stored audience
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Audience"
+        default:
+          $ref: "#/components/responses/ManagementError"
+  /v1/audiences/{id}:
+    parameters:
+      - $ref: "#/components/parameters/AudienceID"
+    get:
+      tags: [Audiences]
+      operationId: getAudience
+      summary: Get an audience
+      description: Requires `management.audiences.read`.
+      security:
+        - managementBearer: []
+      responses:
+        "200":
+          description: Audience
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Audience"
+        default:
+          $ref: "#/components/responses/ManagementError"
+    patch:
+      tags: [Audiences]
+      operationId: patchAudience
+      summary: Partially update an audience
+      description: Requires `management.audiences.write`.
+      security:
+        - managementBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AudiencePatch"
+      responses:
+        "200":
+          description: Updated audience
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Audience"
+        default:
+          $ref: "#/components/responses/ManagementError"
+    delete:
+      tags: [Audiences]
+      operationId: deleteAudience
+      summary: Delete an audience
+      description: Requires `management.audiences.write`. Deletion is idempotent.
+      security:
+        - managementBearer: []
+      responses:
+        "204":
+          description: Audience deleted or already absent
+        default:
+          $ref: "#/components/responses/ManagementError"
+  /v1/resources:
+    post:
+      tags: [Resources]
+      operationId: createResource
+      summary: Create a resource
+      description: Requires `management.resources.write`.
+      security:
+        - managementBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Resource"
+      responses:
+        "201":
+          description: Created resource
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resource"
+        default:
+          $ref: "#/components/responses/ManagementError"
+  /v1/resources/{type}/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceType"
+      - $ref: "#/components/parameters/ResourceID"
+    get:
+      tags: [Resources]
+      operationId: getResource
+      summary: Get a resource
+      description: Requires `management.resources.read`.
+      security:
+        - managementBearer: []
+      responses:
+        "200":
+          description: Resource
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resource"
+        default:
+          $ref: "#/components/responses/ManagementError"
+    patch:
+      tags: [Resources]
+      operationId: patchResource
+      summary: Replace resource metadata
+      description: Requires `management.resources.write`.
+      security:
+        - managementBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResourcePatch"
+      responses:
+        "200":
+          description: Updated resource
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resource"
+        default:
+          $ref: "#/components/responses/ManagementError"
+    delete:
+      tags: [Resources]
+      operationId: deleteResource
+      summary: Delete a resource and its authorization state
+      description: Requires `management.resources.write`. Deletion is idempotent.
+      security:
+        - managementBearer: []
+      responses:
+        "204":
+          description: Resource deleted or already absent
+        default:
+          $ref: "#/components/responses/ManagementError"
+  /v1/resources/{type}/{id}/relationships/{relation}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceType"
+      - $ref: "#/components/parameters/ResourceID"
+      - $ref: "#/components/parameters/Relation"
+    put:
+      tags: [Resources]
+      operationId: putResourceRelationship
+      summary: Add or replace relationship targets
+      description: Requires `management.resources.write`. Cardinality is enforced by the configured schema.
+      security:
+        - managementBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RelationshipMutation"
+      responses:
+        "204":
+          description: Relationship stored
+        default:
+          $ref: "#/components/responses/ManagementError"
+    delete:
+      tags: [Resources]
+      operationId: deleteResourceRelationship
+      summary: Delete relationship targets
+      description: Requires `management.resources.write`. With no body, all targets for the named relationship are removed.
+      security:
+        - managementBearer: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RelationshipMutation"
+      responses:
+        "204":
+          description: Requested relationship targets removed
+        default:
+          $ref: "#/components/responses/ManagementError"
+  /v1/groups:
+    post:
+      tags: [Groups]
+      operationId: createGroup
+      summary: Create a group
+      description: Requires `management.groups.write`.
+      security:
+        - managementBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Group"
+      responses:
+        "201":
+          description: Created group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        default:
+          $ref: "#/components/responses/ManagementError"
+  /v1/groups/{id}:
+    parameters:
+      - $ref: "#/components/parameters/GroupID"
+    get:
+      tags: [Groups]
+      operationId: getGroup
+      summary: Get a group
+      description: Requires `management.groups.read`.
+      security:
+        - managementBearer: []
+      responses:
+        "200":
+          description: Group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        default:
+          $ref: "#/components/responses/ManagementError"
+    delete:
+      tags: [Groups]
+      operationId: deleteGroup
+      summary: Delete a group
+      description: Requires `management.groups.write`. Deletion is idempotent.
+      security:
+        - managementBearer: []
+      responses:
+        "204":
+          description: Group deleted or already absent
+        default:
+          $ref: "#/components/responses/ManagementError"
+  /v1/groups/{id}/members:
+    parameters:
+      - $ref: "#/components/parameters/GroupID"
+    post:
+      tags: [Groups]
+      operationId: addGroupMember
+      summary: Add a principal or nested group member
+      description: Requires `management.groups.write`. Nested-group cycles are rejected.
+      security:
+        - managementBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MembershipRequest"
+      responses:
+        "204":
+          description: Member added
+        default:
+          $ref: "#/components/responses/ManagementError"
+    delete:
+      tags: [Groups]
+      operationId: deleteGroupMember
+      summary: Remove a principal or nested group member
+      description: Requires `management.groups.write`.
+      security:
+        - managementBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MembershipRequest"
+      responses:
+        "204":
+          description: Member removed
+        default:
+          $ref: "#/components/responses/ManagementError"
+  /v1/grants:
+    get:
+      tags: [Grants]
+      operationId: listGrants
+      summary: List grants
+      description: Requires `management.grants.read`.
+      security:
+        - managementBearer: []
+      responses:
+        "200":
+          description: Grant list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrantList"
+        default:
+          $ref: "#/components/responses/ManagementError"
+    post:
+      tags: [Grants]
+      operationId: createGrant
+      summary: Create a resource-scoped role grant
+      description: Requires `management.grants.write`. Semantically identical retries return the existing grant.
+      security:
+        - managementBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrantInput"
+      responses:
+        "201":
+          description: Created or existing semantic grant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Grant"
+        default:
+          $ref: "#/components/responses/ManagementError"
+  /v1/grants/{id}:
+    parameters:
+      - $ref: "#/components/parameters/GrantID"
+    delete:
+      tags: [Grants]
+      operationId: deleteGrant
+      summary: Delete a grant
+      description: Requires `management.grants.write`. Deletion is idempotent.
+      security:
+        - managementBearer: []
+      responses:
+        "204":
+          description: Grant deleted or already absent
+        default:
+          $ref: "#/components/responses/ManagementError"
+components:
+  securitySchemes:
+    platformBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Audience-scoped platform JWT issued by this service.
+    managementBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Platform JWT whose audience is the configured management audience and whose permissions include the operation-specific management permission.
+  parameters:
+    AudienceID:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, minLength: 1}
+    ResourceType:
+      name: type
+      in: path
+      required: true
+      schema: {type: string, minLength: 1}
+    ResourceID:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, minLength: 1}
+    Relation:
+      name: relation
+      in: path
+      required: true
+      schema: {type: string, minLength: 1}
+    GroupID:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, minLength: 1}
+    GrantID:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, minLength: 1}
+  responses:
+    BadRequest:
+      description: Invalid form, JSON, identifier, configuration reference, relationship, grant, or check batch
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Unauthorized:
+      description: Bearer token is missing or invalid
+      headers:
+        WWW-Authenticate:
+          schema: {type: string, const: Bearer}
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    ServiceUnavailable:
+      description: A required dependency is unavailable or the service is not ready
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    ManagementError:
+      description: Management request failure; commonly 400, 401, 403, 404, 429, 500, or 503
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+  schemas:
+    OAuthMetadata:
+      type: object
+      additionalProperties: false
+      required: [issuer, token_endpoint, jwks_uri, grant_types_supported, subject_types_supported]
+      properties:
+        issuer: {type: string, format: uri}
+        token_endpoint: {type: string, format: uri}
+        jwks_uri: {type: string, format: uri}
+        grant_types_supported:
+          type: array
+          items: {type: string}
+        subject_types_supported:
+          type: array
+          items: {type: string}
+    JWKS:
+      type: object
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    TokenExchangeRequest:
+      type: object
+      additionalProperties: false
+      required: [grant_type, subject_token, subject_token_type, audience]
+      properties:
+        grant_type:
+          type: string
+          const: urn:ietf:params:oauth:grant-type:token-exchange
+        subject_token: {type: string, minLength: 1}
+        subject_token_type:
+          type: string
+          const: urn:ietf:params:oauth:token-type:jwt
+        actor_token: {type: string, minLength: 1}
+        actor_token_type:
+          type: string
+          const: urn:ietf:params:oauth:token-type:jwt
+        audience: {type: string, minLength: 1}
+    TokenExchangeResponse:
+      type: object
+      additionalProperties: false
+      required: [access_token, issued_token_type, token_type, expires_in]
+      properties:
+        access_token: {type: string}
+        issued_token_type:
+          type: string
+          const: urn:ietf:params:oauth:token-type:access_token
+        token_type: {type: string, const: Bearer}
+        expires_in: {type: integer, format: int64, minimum: 1}
+    LiveStatus:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: {type: string, const: ok}
+    ReadyStatus:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: {type: string, const: ready}
+    Delegation:
+      type: object
+      additionalProperties: false
+      required: [enabled, mode]
+      properties:
+        enabled: {type: boolean}
+        mode:
+          type: string
+          enum: [disabled, subject, intersection, actor, union]
+    AudienceInput:
+      type: object
+      additionalProperties: false
+      required: [id, token_ttl_seconds]
+      properties:
+        id: {type: string, minLength: 1}
+        display_name: {type: string}
+        token_ttl_seconds: {type: integer, format: int64, minimum: 1}
+        delegation:
+          $ref: "#/components/schemas/Delegation"
+    Audience:
+      allOf:
+        - $ref: "#/components/schemas/AudienceInput"
+        - type: object
+          required: [delegation]
+    AudiencePatch:
+      type: object
+      additionalProperties: false
+      properties:
+        display_name: {type: string}
+        token_ttl_seconds: {type: integer, format: int64, minimum: 1}
+        delegation:
+          $ref: "#/components/schemas/Delegation"
+    AudienceList:
+      type: object
+      additionalProperties: false
+      required: [audiences]
+      properties:
+        audiences:
+          type: array
+          items:
+            $ref: "#/components/schemas/Audience"
+    ResourceRef:
+      type: object
+      additionalProperties: false
+      required: [type, id]
+      properties:
+        type: {type: string, minLength: 1}
+        id: {type: string, minLength: 1}
+    ResourceRelationships:
+      type: object
+      additionalProperties:
+        oneOf:
+          - $ref: "#/components/schemas/ResourceRef"
+          - type: array
+            minItems: 1
+            items:
+              $ref: "#/components/schemas/ResourceRef"
+    Resource:
+      type: object
+      additionalProperties: false
+      required: [type, id]
+      properties:
+        type: {type: string, minLength: 1}
+        id: {type: string, minLength: 1}
+        metadata:
+          type: object
+          additionalProperties: true
+        relationships:
+          $ref: "#/components/schemas/ResourceRelationships"
+    ResourcePatch:
+      type: object
+      additionalProperties: false
+      properties:
+        metadata:
+          type: object
+          additionalProperties: true
+    RelationshipMutation:
+      type: object
+      additionalProperties: false
+      properties:
+        target:
+          $ref: "#/components/schemas/ResourceRef"
+        targets:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResourceRef"
+      anyOf:
+        - required: [target]
+        - required: [targets]
+    Group:
+      type: object
+      additionalProperties: false
+      required: [id]
+      properties:
+        id: {type: string, minLength: 1}
+        display_name: {type: string}
+    PrincipalSubject:
+      type: object
+      additionalProperties: false
+      required: [type, source, subject]
+      properties:
+        type: {type: string, const: principal}
+        source: {type: string, minLength: 1}
+        subject: {type: string, minLength: 1}
+    GroupSubject:
+      type: object
+      additionalProperties: false
+      required: [type, group]
+      properties:
+        type: {type: string, const: group}
+        group: {type: string, minLength: 1}
+    Subject:
+      oneOf:
+        - $ref: "#/components/schemas/PrincipalSubject"
+        - $ref: "#/components/schemas/GroupSubject"
+      discriminator:
+        propertyName: type
+        mapping:
+          principal: "#/components/schemas/PrincipalSubject"
+          group: "#/components/schemas/GroupSubject"
+    MembershipRequest:
+      type: object
+      additionalProperties: false
+      required: [member]
+      properties:
+        member:
+          $ref: "#/components/schemas/Subject"
+    GrantInput:
+      type: object
+      additionalProperties: false
+      required: [subject, role, resource]
+      properties:
+        id: {type: string, minLength: 1}
+        subject:
+          $ref: "#/components/schemas/Subject"
+        role: {type: string, minLength: 1}
+        resource:
+          $ref: "#/components/schemas/ResourceRef"
+        create_resource_if_missing: {type: boolean, default: false}
+    Grant:
+      allOf:
+        - $ref: "#/components/schemas/GrantInput"
+        - type: object
+          required: [id]
+    GrantList:
+      type: object
+      additionalProperties: false
+      required: [grants]
+      properties:
+        grants:
+          type: array
+          items:
+            $ref: "#/components/schemas/Grant"
+    CheckRequest:
+      type: object
+      additionalProperties: false
+      required: [checks]
+      properties:
+        checks:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/Check"
+    Check:
+      type: object
+      additionalProperties: false
+      required: [id, permission, resource]
+      properties:
+        id: {type: string}
+        permission: {type: string, minLength: 1}
+        resource:
+          $ref: "#/components/schemas/ResourceRef"
+    CheckResponse:
+      type: object
+      additionalProperties: false
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/CheckResult"
+    CheckResult:
+      type: object
+      additionalProperties: false
+      required: [id, allowed]
+      properties:
+        id: {type: string}
+        allowed: {type: boolean}
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, request_id]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            request_id: {type: string}

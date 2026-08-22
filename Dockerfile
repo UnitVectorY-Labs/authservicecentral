@@ -29,5 +29,6 @@ COPY --from=builder /app/server /server
 # Expose the port that the server will listen on
 EXPOSE 8080
 
-# Run the server binary
-CMD ["/server"]
+# Run the API; deployment configuration and signing settings are supplied by
+# SERVICEAUTH_* environment variables or command flags.
+CMD ["/server", "run"]
