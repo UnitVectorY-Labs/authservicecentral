@@ -29,6 +29,16 @@ func TestValidateBootstrapRole(t *testing.T) {
 	}
 }
 
+func TestValidateBootstrapRoleAcceptsConfiguredManagementPermission(t *testing.T) {
+	cfg := bootstrapConfig()
+	cfg.Permissions["platform.audiences.admin"] = config.Permission{Resources: []string{"audience"}}
+	cfg.Roles["admin"] = config.Role{Permissions: []string{"platform.audiences.admin"}}
+	cfg.Management.Permissions.Audiences.Write = "platform.audiences.admin"
+	if err := validateBootstrapRole(cfg, "admin"); err != nil {
+		t.Fatalf("custom management permission was rejected: %v", err)
+	}
+}
+
 func TestBootstrapIdentifiersAreStableAndScoped(t *testing.T) {
 	op := operational.Config{BootstrapSource: "corp", BootstrapSubject: "alice", BootstrapRole: "admin", ManagementAudience: "serviceauth-management"}
 	if bootstrapGrantID(op) != bootstrapGrantID(op) {

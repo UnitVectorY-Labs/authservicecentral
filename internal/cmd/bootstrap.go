@@ -77,13 +77,17 @@ func validateBootstrapRole(cfg *config.Config, roleName string) error {
 	if !ok {
 		return fmt.Errorf("bootstrap role %q is not configured", roleName)
 	}
+	configured := map[string]bool{}
+	for _, name := range cfg.Management.ManagementPermissionMap() {
+		configured[name] = true
+	}
 	for _, name := range role.Permissions {
 		permission, exists := cfg.Permissions[name]
-		if exists && strings.HasPrefix(name, "management.") && slices.Contains(permission.Resources, "audience") {
+		if exists && (strings.HasPrefix(name, "management.") || configured[name]) && slices.Contains(permission.Resources, "audience") {
 			return nil
 		}
 	}
-	return fmt.Errorf("bootstrap role %q has no management.* permission applicable to audience", roleName)
+	return fmt.Errorf("bootstrap role %q has no management permission applicable to audience", roleName)
 }
 
 func hasPrincipalSource(cfg *config.Config, source string) bool {

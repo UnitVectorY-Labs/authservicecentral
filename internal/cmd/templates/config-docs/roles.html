@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+{{template "head" .}}
+<body>
+{{template "nav" .}}
+<main id="content">
+  <h1>Roles</h1>
+  <p>Roles group permissions for resource-scoped grants. Applications should check permissions rather than role names.</p>
+  {{range .Model.Roles}}
+  <section>
+    <h2><code>{{.Name}}</code></h2>
+    <p>Granted permissions:</p>
+    <ul>{{range .Permissions}}<li><code>{{.}}</code></li>{{else}}<li>None</li>{{end}}</ul>
+  </section>
+  {{else}}<p>No roles configured.</p>{{end}}
+</main>
+</body>
+</html>

@@ -1,30 +1,108 @@
 openapi: 3.1.0
 info:
-  title: authservicecentral API
+  title: authservicecentral HTTP API
   version: 1.0.0
   description: |
-    Authorization and OAuth 2.0 token-exchange service. Management operations
-    require a platform JWT for the configured management audience and the
-    route-specific `management.*` permission.
+    The public HTTP contract for authservicecentral, a single-deployment
+    authorization and OAuth 2.0 token-exchange service for human and workload
+    identities.
+
+    The service has three HTTP surfaces: OAuth discovery and token exchange,
+    application authorization checks, and authenticated management operations.
+    Management operations are grouped below `/v1/manage/` and require a
+    platform JWT for the configured management audience. Each route requires
+    the permission configured for its family and operation in the deployment
+    YAML under `management.permissions`; when omitted, the conventional
+    `management.<family>.<operation>` name is used. The examples below show the
+    conventional names, not an unconditional hard-coded policy.
+  contact:
+    name: authservicecentral maintainers
+  license:
+    name: MIT
+    identifier: MIT
 servers:
-  - url: http://localhost:8080
-    description: Default local server
+  - url: "{scheme}://{host}:{port}"
+    description: Deployment base URL
+    variables:
+      scheme:
+        default: http
+        enum: [http, https]
+        description: Transport scheme used by the deployment.
+      host:
+        default: localhost
+        description: Hostname where the service is reachable.
+      port:
+        default: "8080"
+        description: Listening TCP port.
+security: []
 tags:
+  - name: Documentation
+    description: Optional, read-only API reference surfaces served by `run`.
   - name: Discovery
+    description: Standards-based issuer metadata and platform verification keys.
   - name: OAuth
+    description: RFC 8693 token exchange for audience-scoped platform JWTs.
   - name: Operations
+    description: Liveness, readiness, and optional Prometheus metrics.
   - name: Authorization
+    description: Permission checks performed using the identity in a platform JWT.
   - name: Audiences
+    description: Management of runtime token-exchange audiences.
   - name: Resources
+    description: Management of typed resource instances and their relationships.
   - name: Groups
+    description: Management of groups and nested group memberships.
   - name: Grants
+    description: Management of resource-scoped role grants.
 paths:
+  /:
+    get:
+      tags: [Documentation]
+      operationId: getSwaggerUI
+      summary: Serve the interactive API reference
+      description: |
+        Returns the static Swagger UI when `SERVICEAUTH_SWAGGER_UI` (or
+        `--swagger-ui`) is enabled. The UI loads the same document exposed by
+        `/openapi.yaml`. This page is documentation only and does not bypass
+        authentication on any API operation.
+      responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
+        "200":
+          description: Swagger UI HTML document.
+          content:
+            text/html:
+              schema:
+                type: string
+        "404":
+          $ref: "#/components/responses/Error"
+  /openapi.yaml:
+    get:
+      tags: [Documentation]
+      operationId: getOpenAPISpecification
+      summary: Return the embedded OpenAPI document
+      description: Returns the canonical YAML document used by the interactive API reference.
+      responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
+        "200":
+          description: OpenAPI 3.1 YAML document.
+          content:
+            application/yaml:
+              schema:
+                type: string
+        "404":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /.well-known/oauth-authorization-server:
     get:
       tags: [Discovery]
       operationId: getOAuthAuthorizationServerMetadata
       summary: Return OAuth authorization-server metadata
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "200":
           description: OAuth metadata
           content:
@@ -39,6 +117,8 @@ paths:
       operationId: getJWKS
       summary: Return platform token verification keys
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "200":
           description: JSON Web Key Set
           content:
@@ -52,7 +132,12 @@ paths:
       tags: [OAuth]
       operationId: exchangeToken
       summary: Exchange a trusted JWT for an audience-scoped platform token
-      description: Implements OAuth 2.0 Token Exchange (RFC 8693). Actor fields are required together for delegated exchange.
+      description: |
+        Implements OAuth 2.0 Token Exchange (RFC 8693). The subject token
+        must be a JWT from a configured trusted token source. The requested
+        audience must already exist. For delegated exchange, `actor_token` and
+        `actor_token_type` must be supplied together and the audience's
+        configured delegation policy must permit the request.
       requestBody:
         required: true
         content:
@@ -60,6 +145,8 @@ paths:
             schema:
               $ref: "#/components/schemas/TokenExchangeRequest"
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "200":
           description: Issued platform access token
           headers:
@@ -81,6 +168,8 @@ paths:
       operationId: getLiveness
       summary: Report process liveness
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "200":
           description: Process is alive
           content:
@@ -93,6 +182,8 @@ paths:
       operationId: getReadiness
       summary: Check database, active model, and signer readiness
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "200":
           description: Service is ready
           content:
@@ -108,6 +199,8 @@ paths:
       summary: Return Prometheus text metrics
       description: Present only when metrics are enabled.
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "200":
           description: Prometheus text exposition
           content:
@@ -119,7 +212,13 @@ paths:
       tags: [Authorization]
       operationId: checkPermissions
       summary: Batch-check resource permissions
-      description: The subject and optional actor are derived exclusively from the signed platform token. A legitimate denial is returned as HTTP 200 with `allowed` set to false.
+      description: |
+        The subject, audience, optional actor, delegation mode, and cached
+        audience permissions are derived exclusively from the signed platform
+        token. Caller-supplied identity fields are not accepted. A legitimate
+        denial is returned as HTTP 200 with `allowed` set to false; malformed
+        checks and checks for unknown or incompatible configured permissions
+        are HTTP 400 errors.
       security:
         - platformBearer: []
       requestBody:
@@ -129,6 +228,8 @@ paths:
             schema:
               $ref: "#/components/schemas/CheckRequest"
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "200":
           description: Ordered authorization decisions
           content:
@@ -141,15 +242,17 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         default:
           $ref: "#/components/responses/Error"
-  /v1/audiences:
+  /v1/manage/audiences:
     get:
       tags: [Audiences]
       operationId: listAudiences
       summary: List audiences
-      description: Requires `management.audiences.read`.
+      description: Requires the configured audiences.read management permission (by default `management.audiences.read`).
       security:
         - managementBearer: []
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "200":
           description: Audience list
           content:
@@ -162,7 +265,7 @@ paths:
       tags: [Audiences]
       operationId: putAudience
       summary: Create or update an audience
-      description: Requires `management.audiences.write`. The audience ID is supplied in the body.
+      description: Requires the configured audiences.write management permission (by default `management.audiences.write`). The audience ID is supplied in the body.
       security:
         - managementBearer: []
       requestBody:
@@ -172,6 +275,8 @@ paths:
             schema:
               $ref: "#/components/schemas/AudienceInput"
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "201":
           description: Stored audience
           content:
@@ -180,17 +285,19 @@ paths:
                 $ref: "#/components/schemas/Audience"
         default:
           $ref: "#/components/responses/ManagementError"
-  /v1/audiences/{id}:
+  /v1/manage/audiences/{id}:
     parameters:
       - $ref: "#/components/parameters/AudienceID"
     get:
       tags: [Audiences]
       operationId: getAudience
       summary: Get an audience
-      description: Requires `management.audiences.read`.
+      description: Requires the configured audiences.read management permission (by default `management.audiences.read`).
       security:
         - managementBearer: []
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "200":
           description: Audience
           content:
@@ -203,7 +310,7 @@ paths:
       tags: [Audiences]
       operationId: patchAudience
       summary: Partially update an audience
-      description: Requires `management.audiences.write`.
+      description: Requires the configured audiences.write management permission (by default `management.audiences.write`).
       security:
         - managementBearer: []
       requestBody:
@@ -213,6 +320,8 @@ paths:
             schema:
               $ref: "#/components/schemas/AudiencePatch"
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "200":
           description: Updated audience
           content:
@@ -225,20 +334,22 @@ paths:
       tags: [Audiences]
       operationId: deleteAudience
       summary: Delete an audience
-      description: Requires `management.audiences.write`. Deletion is idempotent.
+      description: Requires the configured audiences.write management permission (by default `management.audiences.write`). Deletion is idempotent.
       security:
         - managementBearer: []
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "204":
           description: Audience deleted or already absent
         default:
           $ref: "#/components/responses/ManagementError"
-  /v1/resources:
+  /v1/manage/resources:
     post:
       tags: [Resources]
       operationId: createResource
       summary: Create a resource
-      description: Requires `management.resources.write`.
+      description: Requires the configured resources.write management permission (by default `management.resources.write`).
       security:
         - managementBearer: []
       requestBody:
@@ -248,6 +359,8 @@ paths:
             schema:
               $ref: "#/components/schemas/Resource"
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "201":
           description: Created resource
           content:
@@ -256,7 +369,7 @@ paths:
                 $ref: "#/components/schemas/Resource"
         default:
           $ref: "#/components/responses/ManagementError"
-  /v1/resources/{type}/{id}:
+  /v1/manage/resources/{type}/{id}:
     parameters:
       - $ref: "#/components/parameters/ResourceType"
       - $ref: "#/components/parameters/ResourceID"
@@ -264,10 +377,12 @@ paths:
       tags: [Resources]
       operationId: getResource
       summary: Get a resource
-      description: Requires `management.resources.read`.
+      description: Requires the configured resources.read management permission (by default `management.resources.read`).
       security:
         - managementBearer: []
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "200":
           description: Resource
           content:
@@ -280,7 +395,7 @@ paths:
       tags: [Resources]
       operationId: patchResource
       summary: Replace resource metadata
-      description: Requires `management.resources.write`.
+      description: Requires the configured resources.write management permission (by default `management.resources.write`).
       security:
         - managementBearer: []
       requestBody:
@@ -290,6 +405,8 @@ paths:
             schema:
               $ref: "#/components/schemas/ResourcePatch"
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "200":
           description: Updated resource
           content:
@@ -302,15 +419,17 @@ paths:
       tags: [Resources]
       operationId: deleteResource
       summary: Delete a resource and its authorization state
-      description: Requires `management.resources.write`. Deletion is idempotent.
+      description: Requires the configured resources.write management permission (by default `management.resources.write`). Deletion is idempotent.
       security:
         - managementBearer: []
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "204":
           description: Resource deleted or already absent
         default:
           $ref: "#/components/responses/ManagementError"
-  /v1/resources/{type}/{id}/relationships/{relation}:
+  /v1/manage/resources/{type}/{id}/relationships/{relation}:
     parameters:
       - $ref: "#/components/parameters/ResourceType"
       - $ref: "#/components/parameters/ResourceID"
@@ -319,7 +438,7 @@ paths:
       tags: [Resources]
       operationId: putResourceRelationship
       summary: Add or replace relationship targets
-      description: Requires `management.resources.write`. Cardinality is enforced by the configured schema.
+      description: Requires the configured resources.write management permission (by default `management.resources.write`). Cardinality is enforced by the configured schema.
       security:
         - managementBearer: []
       requestBody:
@@ -329,6 +448,8 @@ paths:
             schema:
               $ref: "#/components/schemas/RelationshipMutation"
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "204":
           description: Relationship stored
         default:
@@ -337,7 +458,7 @@ paths:
       tags: [Resources]
       operationId: deleteResourceRelationship
       summary: Delete relationship targets
-      description: Requires `management.resources.write`. With no body, all targets for the named relationship are removed.
+      description: Requires the configured resources.write management permission (by default `management.resources.write`). With no body, all targets for the named relationship are removed.
       security:
         - managementBearer: []
       requestBody:
@@ -347,16 +468,18 @@ paths:
             schema:
               $ref: "#/components/schemas/RelationshipMutation"
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "204":
           description: Requested relationship targets removed
         default:
           $ref: "#/components/responses/ManagementError"
-  /v1/groups:
+  /v1/manage/groups:
     post:
       tags: [Groups]
       operationId: createGroup
       summary: Create a group
-      description: Requires `management.groups.write`.
+      description: Requires the configured groups.write management permission (by default `management.groups.write`).
       security:
         - managementBearer: []
       requestBody:
@@ -366,6 +489,8 @@ paths:
             schema:
               $ref: "#/components/schemas/Group"
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "201":
           description: Created group
           content:
@@ -374,17 +499,19 @@ paths:
                 $ref: "#/components/schemas/Group"
         default:
           $ref: "#/components/responses/ManagementError"
-  /v1/groups/{id}:
+  /v1/manage/groups/{id}:
     parameters:
       - $ref: "#/components/parameters/GroupID"
     get:
       tags: [Groups]
       operationId: getGroup
       summary: Get a group
-      description: Requires `management.groups.read`.
+      description: Requires the configured groups.read management permission (by default `management.groups.read`).
       security:
         - managementBearer: []
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "200":
           description: Group
           content:
@@ -397,22 +524,24 @@ paths:
       tags: [Groups]
       operationId: deleteGroup
       summary: Delete a group
-      description: Requires `management.groups.write`. Deletion is idempotent.
+      description: Requires the configured groups.write management permission (by default `management.groups.write`). Deletion is idempotent.
       security:
         - managementBearer: []
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "204":
           description: Group deleted or already absent
         default:
           $ref: "#/components/responses/ManagementError"
-  /v1/groups/{id}/members:
+  /v1/manage/groups/{id}/members:
     parameters:
       - $ref: "#/components/parameters/GroupID"
     post:
       tags: [Groups]
       operationId: addGroupMember
       summary: Add a principal or nested group member
-      description: Requires `management.groups.write`. Nested-group cycles are rejected.
+      description: Requires the configured groups.write management permission (by default `management.groups.write`). Nested-group cycles are rejected.
       security:
         - managementBearer: []
       requestBody:
@@ -422,6 +551,8 @@ paths:
             schema:
               $ref: "#/components/schemas/MembershipRequest"
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "204":
           description: Member added
         default:
@@ -430,7 +561,7 @@ paths:
       tags: [Groups]
       operationId: deleteGroupMember
       summary: Remove a principal or nested group member
-      description: Requires `management.groups.write`.
+      description: Requires the configured groups.write management permission (by default `management.groups.write`).
       security:
         - managementBearer: []
       requestBody:
@@ -440,19 +571,23 @@ paths:
             schema:
               $ref: "#/components/schemas/MembershipRequest"
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "204":
           description: Member removed
         default:
           $ref: "#/components/responses/ManagementError"
-  /v1/grants:
+  /v1/manage/grants:
     get:
       tags: [Grants]
       operationId: listGrants
       summary: List grants
-      description: Requires `management.grants.read`.
+      description: Requires the configured grants.read management permission (by default `management.grants.read`).
       security:
         - managementBearer: []
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "200":
           description: Grant list
           content:
@@ -465,7 +600,7 @@ paths:
       tags: [Grants]
       operationId: createGrant
       summary: Create a resource-scoped role grant
-      description: Requires `management.grants.write`. Semantically identical retries return the existing grant.
+      description: Requires the configured grants.write management permission (by default `management.grants.write`). Semantically identical retries return the existing grant.
       security:
         - managementBearer: []
       requestBody:
@@ -475,6 +610,8 @@ paths:
             schema:
               $ref: "#/components/schemas/GrantInput"
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "201":
           description: Created or existing semantic grant
           content:
@@ -483,17 +620,19 @@ paths:
                 $ref: "#/components/schemas/Grant"
         default:
           $ref: "#/components/responses/ManagementError"
-  /v1/grants/{id}:
+  /v1/manage/grants/{id}:
     parameters:
       - $ref: "#/components/parameters/GrantID"
     delete:
       tags: [Grants]
       operationId: deleteGrant
       summary: Delete a grant
-      description: Requires `management.grants.write`. Deletion is idempotent.
+      description: Requires the configured grants.write management permission (by default `management.grants.write`). Deletion is idempotent.
       security:
         - managementBearer: []
       responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
         "204":
           description: Grant deleted or already absent
         default:
@@ -504,43 +643,49 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Audience-scoped platform JWT issued by this service.
+      description: Platform JWT issued by this service for the requested audience. Required by `/v1/check`.
     managementBearer:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Platform JWT whose audience is the configured management audience and whose permissions include the operation-specific management permission.
+      description: Platform JWT whose `aud` is the configured management audience and whose `permissions` claim includes the operation-specific permission configured under `management.permissions` (or its conventional default).
   parameters:
     AudienceID:
       name: id
       in: path
       required: true
-      schema: {type: string, minLength: 1}
+      description: Stable runtime audience identifier.
+      schema: {type: string, minLength: 1, example: documents-api}
     ResourceType:
       name: type
       in: path
       required: true
-      schema: {type: string, minLength: 1}
+      description: YAML-defined resource type, for example `document`.
+      schema: {type: string, minLength: 1, example: document}
     ResourceID:
       name: id
       in: path
       required: true
-      schema: {type: string, minLength: 1}
+      description: Caller-defined runtime resource identifier.
+      schema: {type: string, minLength: 1, example: report-123}
     Relation:
       name: relation
       in: path
       required: true
-      schema: {type: string, minLength: 1}
+      description: YAML-defined relationship name.
+      schema: {type: string, minLength: 1, example: parent}
     GroupID:
       name: id
       in: path
       required: true
-      schema: {type: string, minLength: 1}
+      description: Stable runtime group identifier.
+      schema: {type: string, minLength: 1, example: finance}
     GrantID:
       name: id
       in: path
       required: true
-      schema: {type: string, minLength: 1}
+      description: Stable role-grant identifier.
+      schema: {type: string, minLength: 1, example: grant-123}
   responses:
     BadRequest:
       description: Invalid form, JSON, identifier, configuration reference, relationship, grant, or check batch
@@ -581,9 +726,18 @@ components:
       additionalProperties: false
       required: [issuer, token_endpoint, jwks_uri, grant_types_supported, subject_types_supported]
       properties:
-        issuer: {type: string, format: uri}
-        token_endpoint: {type: string, format: uri}
-        jwks_uri: {type: string, format: uri}
+        issuer:
+          type: string
+          format: uri
+          description: Canonical issuer used in platform JWTs.
+        token_endpoint:
+          type: string
+          format: uri
+          description: RFC 8693 token-exchange endpoint.
+        jwks_uri:
+          type: string
+          format: uri
+          description: Public keys used to verify platform JWT signatures.
         grant_types_supported:
           type: array
           items: {type: string}
@@ -621,12 +775,18 @@ components:
       additionalProperties: false
       required: [access_token, issued_token_type, token_type, expires_in]
       properties:
-        access_token: {type: string}
+        access_token:
+          type: string
+          description: Short-lived signed platform JWT.
         issued_token_type:
           type: string
           const: urn:ietf:params:oauth:token-type:access_token
         token_type: {type: string, const: Bearer}
-        expires_in: {type: integer, format: int64, minimum: 1}
+        expires_in:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Lifetime of the issued token in seconds.
     LiveStatus:
       type: object
       additionalProperties: false
@@ -644,18 +804,33 @@ components:
       additionalProperties: false
       required: [enabled, mode]
       properties:
-        enabled: {type: boolean}
+        enabled:
+          type: boolean
+          description: Whether delegated exchange is allowed for the audience.
         mode:
           type: string
+          description: How subject and actor permissions are combined.
           enum: [disabled, subject, intersection, actor, union]
     AudienceInput:
       type: object
       additionalProperties: false
       required: [id, token_ttl_seconds]
       properties:
-        id: {type: string, minLength: 1}
-        display_name: {type: string}
-        token_ttl_seconds: {type: integer, format: int64, minimum: 1}
+        id:
+          type: string
+          minLength: 1
+          description: Stable audience identifier requested by token exchange callers.
+          example: documents-api
+        display_name:
+          type: string
+          description: Human-readable name for operators.
+          example: Documents API
+        token_ttl_seconds:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Lifetime of exchanged platform tokens issued for this audience.
+          example: 900
         delegation:
           $ref: "#/components/schemas/Delegation"
     Audience:
@@ -685,8 +860,16 @@ components:
       additionalProperties: false
       required: [type, id]
       properties:
-        type: {type: string, minLength: 1}
-        id: {type: string, minLength: 1}
+        type:
+          type: string
+          minLength: 1
+          description: YAML-defined resource type or intrinsic type such as `audience`.
+          example: document
+        id:
+          type: string
+          minLength: 1
+          description: Runtime identifier within the resource type.
+          example: report-123
     ResourceRelationships:
       type: object
       additionalProperties:
@@ -701,12 +884,22 @@ components:
       additionalProperties: false
       required: [type, id]
       properties:
-        type: {type: string, minLength: 1}
-        id: {type: string, minLength: 1}
+        type:
+          type: string
+          minLength: 1
+          description: Resource type declared in the deployment YAML.
+          example: document
+        id:
+          type: string
+          minLength: 1
+          description: Caller-defined resource identifier.
+          example: report-123
         metadata:
           type: object
+          description: JSON metadata stored with the catalog entry. Metadata is not authorization state.
           additionalProperties: true
         relationships:
+          description: Relationship targets keyed by YAML-defined relation name. A one-cardinality relation may use one object; many-cardinality relations may use an array.
           $ref: "#/components/schemas/ResourceRelationships"
     ResourcePatch:
       type: object
@@ -728,13 +921,20 @@ components:
       anyOf:
         - required: [target]
         - required: [targets]
+      description: One target or a non-empty target list. For DELETE, omitting the body removes all targets for the relation.
     Group:
       type: object
       additionalProperties: false
       required: [id]
       properties:
-        id: {type: string, minLength: 1}
-        display_name: {type: string}
+        id:
+          type: string
+          minLength: 1
+          description: Stable runtime group identifier.
+          example: finance
+        display_name:
+          type: string
+          description: Human-readable group name.
     PrincipalSubject:
       type: object
       additionalProperties: false
@@ -771,13 +971,23 @@ components:
       additionalProperties: false
       required: [subject, role, resource]
       properties:
-        id: {type: string, minLength: 1}
+        id:
+          type: string
+          minLength: 1
+          description: Optional idempotency-stable grant identifier. Generated when omitted.
         subject:
           $ref: "#/components/schemas/Subject"
-        role: {type: string, minLength: 1}
+        role:
+          type: string
+          minLength: 1
+          description: YAML-defined role whose applicable permissions are granted.
+          example: reader
         resource:
           $ref: "#/components/schemas/ResourceRef"
-        create_resource_if_missing: {type: boolean, default: false}
+        create_resource_if_missing:
+          type: boolean
+          default: false
+          description: Create a missing parentless application resource before granting. Audiences and groups must be created through their own endpoints.
     Grant:
       allOf:
         - $ref: "#/components/schemas/GrantInput"
@@ -808,8 +1018,15 @@ components:
       additionalProperties: false
       required: [id, permission, resource]
       properties:
-        id: {type: string}
-        permission: {type: string, minLength: 1}
+        id:
+          type: string
+          description: Caller-defined result identifier preserved in the response.
+          example: read-report
+        permission:
+          type: string
+          minLength: 1
+          description: YAML-defined permission to evaluate.
+          example: document.read
         resource:
           $ref: "#/components/schemas/ResourceRef"
     CheckResponse:

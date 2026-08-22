@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/UnitVectorY-Labs/authservicecentral/internal/api"
 	"github.com/UnitVectorY-Labs/authservicecentral/internal/app"
 	"github.com/UnitVectorY-Labs/authservicecentral/internal/authn"
 	"github.com/UnitVectorY-Labs/authservicecentral/internal/authorization/compiler"
@@ -54,6 +55,7 @@ func TestPostgresEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	api.SetOpenAPISpec([]byte("openapi: 3.1.0\ninfo:\n  title: integration test\n"))
 
 	t.Run("migrations and model activation", func(t *testing.T) { activate(t, ctx, databaseURL, cfg) })
 	t.Run("controlled management bootstrap", func(t *testing.T) {
@@ -65,7 +67,7 @@ func TestPostgresEndToEnd(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	op := operational.Config{DatabaseURL: databaseURL, Issuer: "https://platform.test", SigningProvider: "local", SigningKeyFile: platformFile, ManagementOpen: true, MaxBatchSize: 100, HTTPTimeout: 5 * time.Second, ReconcileInterval: time.Hour, ReconcileBatch: 100, Metrics: true}
+	op := operational.Config{DatabaseURL: databaseURL, Issuer: "https://platform.test", SigningProvider: "local", SigningKeyFile: platformFile, ManagementOpen: true, SwaggerUI: true, MaxBatchSize: 100, HTTPTimeout: 5 * time.Second, ReconcileInterval: time.Hour, ReconcileBatch: 100, Metrics: true}
 	runtime, err := app.BuildRuntime(ctx, op, cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -94,6 +96,14 @@ func TestPostgresEndToEnd(t *testing.T) {
 		if status != 200 || !strings.Contains(body, `"kty":"RSA"`) || !strings.Contains(body, `"kid":`) {
 			t.Fatalf("JWKS: %d %s", status, body)
 		}
+		status, body = request(t, client, http.MethodGet, server.URL+"/", "", nil, "")
+		if status != http.StatusOK || !strings.Contains(body, "SwaggerUIBundle") {
+			t.Fatalf("Swagger UI: %d %s", status, body)
+		}
+		status, body = request(t, client, http.MethodGet, server.URL+"/openapi.yaml", "", nil, "")
+		if status != http.StatusOK || !strings.Contains(body, "integration test") {
+			t.Fatalf("OpenAPI document: %d %s", status, body)
+		}
 	})
 
 	post := func(path, body string) string {
@@ -103,18 +113,18 @@ func TestPostgresEndToEnd(t *testing.T) {
 		}
 		return response
 	}
-	post("/v1/audiences", `{"id":"docs","display_name":"Documents","token_ttl_seconds":600,"delegation":{"enabled":false,"mode":"disabled"}}`)
-	post("/v1/resources", `{"type":"folder","id":"finance"}`)
-	post("/v1/resources", `{"type":"folder","id":"legal"}`)
-	post("/v1/resources", `{"type":"document","id":"report","relationships":{"parent":{"type":"folder","id":"finance"}}}`)
-	post("/v1/groups", `{"id":"inner"}`)
-	post("/v1/groups", `{"id":"outer"}`)
-	post("/v1/groups/inner/members", `{"member":{"type":"principal","source":"test","subject":"alice"}}`)
-	post("/v1/groups/outer/members", `{"member":{"type":"group","group":"inner"}}`)
-	post("/v1/grants", `{"id":"g-folder","subject":{"type":"group","group":"outer"},"role":"reader","resource":{"type":"folder","id":"finance"}}`)
-	post("/v1/grants", `{"id":"g-doc-bob","subject":{"type":"principal","source":"test","subject":"bob"},"role":"editor","resource":{"type":"document","id":"report"}}`)
-	post("/v1/grants", `{"id":"g-aud-alice","subject":{"type":"principal","source":"test","subject":"alice"},"role":"reader","resource":{"type":"audience","id":"docs"}}`)
-	post("/v1/grants", `{"id":"g-aud-bob","subject":{"type":"principal","source":"test","subject":"bob"},"role":"editor","resource":{"type":"audience","id":"docs"}}`)
+	post("/v1/manage/audiences", `{"id":"docs","display_name":"Documents","token_ttl_seconds":600,"delegation":{"enabled":false,"mode":"disabled"}}`)
+	post("/v1/manage/resources", `{"type":"folder","id":"finance"}`)
+	post("/v1/manage/resources", `{"type":"folder","id":"legal"}`)
+	post("/v1/manage/resources", `{"type":"document","id":"report","relationships":{"parent":{"type":"folder","id":"finance"}}}`)
+	post("/v1/manage/groups", `{"id":"inner"}`)
+	post("/v1/manage/groups", `{"id":"outer"}`)
+	post("/v1/manage/groups/inner/members", `{"member":{"type":"principal","source":"test","subject":"alice"}}`)
+	post("/v1/manage/groups/outer/members", `{"member":{"type":"group","group":"inner"}}`)
+	post("/v1/manage/grants", `{"id":"g-folder","subject":{"type":"group","group":"outer"},"role":"reader","resource":{"type":"folder","id":"finance"}}`)
+	post("/v1/manage/grants", `{"id":"g-doc-bob","subject":{"type":"principal","source":"test","subject":"bob"},"role":"editor","resource":{"type":"document","id":"report"}}`)
+	post("/v1/manage/grants", `{"id":"g-aud-alice","subject":{"type":"principal","source":"test","subject":"alice"},"role":"reader","resource":{"type":"audience","id":"docs"}}`)
+	post("/v1/manage/grants", `{"id":"g-aud-bob","subject":{"type":"principal","source":"test","subject":"bob"},"role":"editor","resource":{"type":"audience","id":"docs"}}`)
 	drain(t, ctx, runtime)
 
 	var pending int
@@ -148,13 +158,13 @@ func TestPostgresEndToEnd(t *testing.T) {
 	})
 
 	t.Run("move revokes inherited access", func(t *testing.T) {
-		status, body := request(t, client, http.MethodPut, server.URL+"/v1/resources/document/report/relationships/parent", "application/json", strings.NewReader(`{"target":{"type":"folder","id":"legal"}}`), "")
+		status, body := request(t, client, http.MethodPut, server.URL+"/v1/manage/resources/document/report/relationships/parent", "application/json", strings.NewReader(`{"target":{"type":"folder","id":"legal"}}`), "")
 		if status != 204 {
 			t.Fatalf("move: %d %s", status, body)
 		}
 		drain(t, ctx, runtime)
 		check(t, client, server.URL, aliceToken, "document.read", "document", "report", 200, false)
-		status, body = request(t, client, http.MethodPut, server.URL+"/v1/resources/document/report/relationships/parent", "application/json", strings.NewReader(`{"target":{"type":"folder","id":"finance"}}`), "")
+		status, body = request(t, client, http.MethodPut, server.URL+"/v1/manage/resources/document/report/relationships/parent", "application/json", strings.NewReader(`{"target":{"type":"folder","id":"finance"}}`), "")
 		if status != 204 {
 			t.Fatalf("move back: %d %s", status, body)
 		}
@@ -162,9 +172,9 @@ func TestPostgresEndToEnd(t *testing.T) {
 	})
 
 	t.Run("implicit resource creation", func(t *testing.T) {
-		post("/v1/grants", `{"id":"g-implicit","subject":{"type":"principal","source":"test","subject":"alice"},"role":"reader","resource":{"type":"document","id":"implicit"},"create_resource_if_missing":true}`)
+		post("/v1/manage/grants", `{"id":"g-implicit","subject":{"type":"principal","source":"test","subject":"alice"},"role":"reader","resource":{"type":"document","id":"implicit"},"create_resource_if_missing":true}`)
 		drain(t, ctx, runtime)
-		status, _ := request(t, client, "GET", server.URL+"/v1/resources/document/implicit", "", nil, "")
+		status, _ := request(t, client, "GET", server.URL+"/v1/manage/resources/document/implicit", "", nil, "")
 		if status != 200 {
 			t.Fatalf("implicit resource status=%d", status)
 		}
@@ -194,7 +204,7 @@ func TestPostgresEndToEnd(t *testing.T) {
 	})
 
 	t.Run("resource deletion cleanup", func(t *testing.T) {
-		status, body := request(t, client, http.MethodDelete, server.URL+"/v1/resources/folder/finance", "", nil, "")
+		status, body := request(t, client, http.MethodDelete, server.URL+"/v1/manage/resources/folder/finance", "", nil, "")
 		if status != 204 {
 			t.Fatalf("delete: %d %s", status, body)
 		}
@@ -357,7 +367,7 @@ func patchAudienceMode(t *testing.T, client *http.Client, base, mode string) {
 	t.Helper()
 	enabled := mode != "disabled"
 	body := fmt.Sprintf(`{"delegation":{"enabled":%t,"mode":%q}}`, enabled, mode)
-	status, response := request(t, client, "PATCH", base+"/v1/audiences/docs", "application/json", strings.NewReader(body), "")
+	status, response := request(t, client, "PATCH", base+"/v1/manage/audiences/docs", "application/json", strings.NewReader(body), "")
 	if status != 200 {
 		t.Fatalf("patch delegation: %d %s", status, response)
 	}

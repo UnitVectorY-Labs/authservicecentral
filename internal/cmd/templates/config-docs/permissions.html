@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+{{template "head" .}}
+<body>
+{{template "nav" .}}
+<main id="content">
+  <h1>Permissions</h1>
+  <p>Permissions are the application authorization contract. Each permission is applicable to the listed resource types.</p>
+  <section>
+    <table>
+      <tr><th>Permission</th><th>Applicable resource types</th></tr>
+      {{range .Model.Permissions}}<tr><td><code>{{.Name}}</code></td><td><code>{{join .Resources ", "}}</code></td></tr>{{else}}<tr><td colspan="2">No permissions configured.</td></tr>{{end}}
+    </table>
+  </section>
+</main>
+</body>
+</html>

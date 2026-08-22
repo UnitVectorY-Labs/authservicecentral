@@ -1,34 +1,20 @@
-A Go-based authorization and token exchange service that unifies human and workload identities, issues audience-scoped JWTs, and uses OpenFGA for configurable fine-grained, resource-level permissions.
+# Working guidelines
 
-The main.go file is the entry point and the rest of the code is organized under the `internal/` directory. Any external files needed by the application such as a database schema / migration files and the HTML templates and other resources are to be included in the compiled binary using the embed package.
+authservicecentral is a self-contained Go authorization and OAuth 2.0 token-exchange service. It unifies human and workload identities, issues audience-scoped platform JWTs, and evaluates fine-grained resource permissions with an embedded OpenFGA model backed by PostgreSQL.
 
-The main application web is launched using the "run" sub-command.
+## Core decisions
 
-## Technology Stack
+- The deployment YAML defines the authorization schema: trusted token sources, permissions, roles, resource types, relationships, inheritance, and management permission policy.
+- PostgreSQL stores runtime catalog data, audit records, and reconciliation state. OpenFGA is an internal authorization engine, not the public API contract.
+- `run` starts the service; startup verifies the active configuration/model and never performs an implicit migration.
+- Management APIs live below `/v1/manage/` and are protected by audience-scoped platform tokens and route permissions. Bootstrap is an explicit, auditable CLI operation.
+- External resources are embedded with Go `embed`; avoid runtime file dependencies where an embedded resource is appropriate.
+- Prefer the Go standard library and small, well-justified dependencies. Keep browser behavior simple with server-rendered HTML and HTMX where interactivity is needed.
 
-- Go programming language
-- Docker for containerization
-- PostgreSQL for database storage
-- Database migrations handled with "migrate" sub-command using `golang-migrate/migrate` library
-- https://openfga.dev/ used for authorization built in using Go.
-- No additional JavaScript frameworks beyond HTMX (radical simplicity as design philosophy)
+## Working practice
 
-Minimize the use of external dependencies relying on the Go standard library as much as possible.
-
-## Documentation
-
-All functionality is clearly and concisely documented in the `docs/` directory. When changes are made ensure the documentation is updated accordingly.
-
-Documentation Files:
-
-- `README.md` the high level marketing style overview of the project and its features
-- `USAGE.md` the detailed usage instructions for all commands and features
-- `CONFIG.md` the detailed configuration options (environment variables and flags) and their usage
-- `DATABASE.md` the information about the database including migration instructions and the details of the schema
-
-The projects main README.md should be kept concise and high level not being updated to reference new functionality or features, just sticking to a clear overview of the project.
-
-## Testing
-
-When performing testing and verification of the functionality, use a docker container running the `postgres:18` to allow for a complete testing environment.
-Playwright is used for testing of the web interface when new functionality is added.
+- Read the relevant document in `docs/` before changing behavior, and update documentation in the same change.
+- Keep `README.md` high-level. Put command and process-setting details in `docs/USAGE.md`, YAML details in `docs/CONFIG.md`, API contract details in `docs/API.md` and `openapi.yaml`, and architectural rationale in `docs/ARCHITECTURE.md`.
+- Treat configuration and authorization changes as security-sensitive. Preserve strict validation, fail-closed startup, resource-scoped grants, auditability, and idempotent reconciliation.
+- Verify changes with focused tests plus the repository’s complete Go test/build checks. Integration verification requires a disposable PostgreSQL-compatible environment; browser changes should include Playwright coverage when applicable.
+- Preserve existing user changes in a dirty worktree and keep edits within the requested scope.

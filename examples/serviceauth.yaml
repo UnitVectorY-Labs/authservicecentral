@@ -88,3 +88,20 @@ resources:
     inheritance:
       - relationship: parent
         permissions: [video.view]
+
+# Management route permissions are deployment policy. Omit this section to use
+# the conventional management.<family>.<read|write> names shown here.
+management:
+  permissions:
+    audiences:
+      read: management.audiences.read
+      write: management.audiences.write
+    resources:
+      read: management.resources.read
+      write: management.resources.write
+    groups:
+      read: management.groups.read
+      write: management.groups.write
+    grants:
+      read: management.grants.read
+      write: management.grants.write

@@ -1,103 +1,162 @@
 # Usage
 
-For complete endpoint schemas and examples, see [API.md](API.md) and the machine-readable [`openapi.yaml`](../openapi.yaml).
+`authservicecentral` is a single executable. It validates a deployment YAML file, manages the PostgreSQL/OpenFGA lifecycle, exchanges trusted JWTs, and serves the HTTP API.
 
-## Commands
+For the HTTP contract, see [API.md](API.md) and the repository’s machine-readable [openapi.yaml](../openapi.yaml). For the YAML document itself, see [CONFIG.md](CONFIG.md). Architectural context is in [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Invocation
 
 ```text
-authservicecentral run       Start the HTTP API (`api` is an alias)
-authservicecentral migrate   Apply both schemas and activate the compiled model
-authservicecentral bootstrap Create the initial resource-scoped management grant
-authservicecentral validate  Strictly validate YAML and print its fingerprint
-authservicecentral model     Print deterministic OpenFGA 1.1 JSON
-authservicecentral doctor    Probe database, active model, signer, and remote trust
-authservicecentral version   Print the build version
+authservicecentral <command> [flags]
 ```
 
-All commands except `version` accept the process flags in [CONFIG.md](CONFIG.md). `validate` and `model` do not mutate external state. `migrate` is the only command that migrates or activates a model. `doctor` performs network discovery for configured remote issuers.
+The executable accepts these commands:
 
-Typical startup:
+| Command | Purpose | Changes external state? |
+|---|---|---:|
+| `run` | Start the HTTP API and background reconciliation loop. | Yes, through runtime API requests. |
+| `api` | Alias for `run`. | Yes, through runtime API requests. |
+| `migrate` | Apply embedded migrations, compile the YAML model, and activate its fingerprint/model. | Yes. |
+| `bootstrap` | Create the initial management audience grant for a trusted principal. | Yes. |
+| `config-docs` | Render the validated YAML as safe, browsable static HTML pages. | Yes, by writing files. |
+| `validate` | Parse, validate, fingerprint, and compile YAML without changing runtime state. | No. |
+| `model` | Print the deterministic compiled OpenFGA 1.1 JSON model. | No. |
+| `doctor` | Check database, active model, signing backend, and configured remote trust. | No, but it performs network probes. |
+| `version` | Print the build version. | No. |
+
+Use the command-specific flag reference below when composing a deployment command. The executable name can be replaced with `go run .` from a source checkout.
+
+## Recommended first deployment
+
+The order is intentional. `run` does not migrate the database or silently activate a model.
 
 ```bash
-go run . validate --config serviceauth.yaml
-go run . migrate --config serviceauth.yaml --database-url "$SERVICEAUTH_DATABASE_URL"
-go run . bootstrap --config serviceauth.yaml --database-url "$SERVICEAUTH_DATABASE_URL" \
+authservicecentral validate --config serviceauth.yaml
+authservicecentral migrate --config serviceauth.yaml --database-url "$SERVICEAUTH_DATABASE_URL"
+authservicecentral bootstrap --config serviceauth.yaml --database-url "$SERVICEAUTH_DATABASE_URL" \
   --source corporate --subject alice --role serviceauth_admin
-go run . doctor --config serviceauth.yaml --database-url "$SERVICEAUTH_DATABASE_URL" --signing-key-file ./platform-key.pem
-go run . run --config serviceauth.yaml --database-url "$SERVICEAUTH_DATABASE_URL" --signing-key-file ./platform-key.pem
+authservicecentral doctor --config serviceauth.yaml --database-url "$SERVICEAUTH_DATABASE_URL" \
+  --signing-key-file ./platform-key.pem
+authservicecentral run --config serviceauth.yaml --database-url "$SERVICEAUTH_DATABASE_URL" \
+  --signing-key-file ./platform-key.pem
 ```
 
-For KMS, replace the signing-key flag with `--signing-provider=gcp-kms --gcp-kms-key='projects/.../cryptoKeyVersions/1'` and provide Application Default Credentials.
+For GCP KMS signing, use `--signing-provider=gcp-kms` and `--gcp-kms-key` instead of `--signing-key-file`, with Application Default Credentials available to the process.
 
-## Public endpoints
+## Command reference
 
-| Method/path | Purpose |
-|---|---|
-| `GET /.well-known/oauth-authorization-server` | Issuer, token endpoint, JWKS URI, RFC 8693 grant metadata |
-| `GET /.well-known/jwks.json` | Current platform signing public JWK set |
-| `POST /oauth2/token` | OAuth 2.0 token exchange; form encoded |
-| `GET /health/live` | Process liveness |
-| `GET /health/ready` | Database/model/signer readiness |
-| `GET /metrics` | Text metrics when enabled |
+### `run`
 
-Token exchange uses `application/x-www-form-urlencoded`:
+Starts the HTTP server and the periodic authorization outbox reconciler. It loads and strictly validates the YAML, verifies that its fingerprint is active in PostgreSQL/OpenFGA, initializes trust and signing, drains a bounded amount of pending reconciliation work, and then listens on `--listen-address`.
+
+The local signing provider requires `--signing-key-file`; the GCP KMS provider requires `--gcp-kms-key`. `run` never applies migrations. Stop the process with the platform’s normal interrupt or termination signal for graceful shutdown.
+
+When `--swagger-ui` is enabled, `GET /` serves the static Swagger UI shell and `GET /openapi.yaml` serves the embedded OpenAPI document. This surface is enabled by default and can be disabled with `SERVICEAUTH_SWAGGER_UI=false` or `--swagger-ui=false`.
+
+### `api`
+
+An alias for `run`, retained for compatibility with deployments that use `api` as the service command. It accepts the same flags and environment variables and has the same startup and shutdown behavior.
+
+### `migrate`
+
+Validates the YAML and token-source configuration, applies the embedded application migrations, applies the supported OpenFGA datastore migrations, compiles the authorization model, and creates or reuses the immutable model identified by the YAML fingerprint. It then records and activates the configuration version.
+
+This is the only command that migrates or activates the authorization model. It does not require signing material because it does not issue platform tokens.
+
+### `bootstrap`
+
+Creates the first management path after `migrate` has activated the matching model. It:
+
+1. verifies that `--source` matches a configured token-source identity prefix;
+2. verifies that `--role` exists and contains a management permission applicable to `audience`;
+3. verifies the active YAML fingerprint/model;
+4. upserts the management audience; and
+5. creates and reconciles a deterministic resource-scoped grant for `--source:--subject`.
+
+Repeating the same invocation is idempotent. The principal still obtains a normal platform JWT through token exchange; bootstrap does not create an HTTP bypass.
+
+### `config-docs`
+
+Renders the validated deployment YAML as a static HTML site. The command uses the same strict parser and validation rules as the runtime, computes the configuration fingerprint, and writes seven pages to `config-docs/` by default:
+
+```text
+index.html
+configuration.html
+token-sources.html
+permissions.html
+roles.html
+resources.html
+management-permissions.html
+```
+
+Generate the site into a chosen directory with either spelling of the output flag:
 
 ```bash
-curl -sS "$ISSUER/oauth2/token" \
-  -H 'Content-Type: application/x-www-form-urlencoded' \
-  --data-urlencode 'grant_type=urn:ietf:params:oauth:grant-type:token-exchange' \
-  --data-urlencode "subject_token=$EXTERNAL_JWT" \
-  --data-urlencode 'subject_token_type=urn:ietf:params:oauth:token-type:jwt' \
-  --data-urlencode 'audience=documents-api'
+authservicecentral config-docs --config serviceauth.yaml --output-dir ./config-reference
 ```
 
-For delegation, also send `actor_token` and `actor_token_type=urn:ietf:params:oauth:token-type:jwt`. The response is `{access_token, issued_token_type, token_type, expires_in}` with `Cache-Control: no-store`.
+`--output` is an alias for `--output-dir`. The generated pages are standalone static files and use basic Go templates with HTMX navigation; they do not require a JavaScript framework or a running authservicecentral process. The full configuration page redacts private JWK parameters, private PEM blocks, and secret-like values before rendering. Publish the output as static documentation only after reviewing the redaction policy for the deployment’s own extensions.
 
-## Management endpoints
+### `validate`
 
-All JSON bodies are strict: unknown fields, trailing values, and oversized bodies are rejected. Unless development-only insecure management is enabled, management calls require a platform Bearer token whose audience is `serviceauth-management` and whose `permissions` contains the route-specific `management.*` permission.
+Parses the one-document YAML file with strict fields, validates all references and matchers, computes its canonical fingerprint, compiles the OpenFGA model, and validates token-source configuration. It does not connect to PostgreSQL or mutate the deployment.
 
-| Method/path | Body/result |
-|---|---|
-| `POST /v1/audiences` | Create/upsert `{id,display_name,token_ttl_seconds,delegation:{enabled,mode}}`; 201 |
-| `GET /v1/audiences` | `{audiences:[...]}` |
-| `GET/PATCH/DELETE /v1/audiences/{id}` | Read, partial update, delete |
-| `POST /v1/resources` | `{type,id,metadata?,relationships?}`; 201 |
-| `GET/PATCH/DELETE /v1/resources/{type}/{id}` | Read, metadata update, delete |
-| `PUT/DELETE /v1/resources/{type}/{id}/relationships/{relation}` | `{target:{type,id}}` or `{targets:[...]}`; 204 |
-| `POST /v1/groups` | `{id,display_name?}`; 201 |
-| `GET/DELETE /v1/groups/{id}` | Read or delete |
-| `POST/DELETE /v1/groups/{id}/members` | `{member:{type:"principal",source,subject}}` or group member; 204 |
-| `POST /v1/grants` | `{id?,subject,role,resource,create_resource_if_missing?}`; 201 |
-| `GET /v1/grants` | `{grants:[...]}` |
-| `DELETE /v1/grants/{id}` | 204, idempotent catalog deletion semantics |
+### `model`
 
-Relationships on resource creation accept a concise single target or an array. `create_resource_if_missing` can create only a parentless resource whose type does not require relationships; audience/group creation remains explicit.
+Prints the deterministic compiled OpenFGA 1.1 JSON model for inspection, review, or diffing. It does not connect to PostgreSQL or mutate the deployment.
 
-## Permission checks
+### `doctor`
 
-`POST /v1/check` requires a valid platform Bearer token and derives subject/actor exclusively from its signed `authorization_context`:
+Checks PostgreSQL connectivity, the active model fingerprint, the configured signing backend and public JWK, token-source validation, and remote issuer/JWKS trust where configured. It requires the same signing material as `run` and may make outbound HTTPS requests.
 
-```json
-{"checks":[
-  {"id":"read-123","permission":"document.read","resource":{"type":"document","id":"123"}}
-]}
-```
+### `version`
 
-The response preserves order and IDs: `{"results":[{"id":"read-123","allowed":true}]}`. A legitimate denial is HTTP 200 with `allowed:false`. Unknown permission, incompatible resource type, malformed checks, or a batch outside configured bounds is HTTP 400. Missing/invalid Bearer tokens are 401; missing catalog objects are 404; dependency failures are 503/500.
+Prints the build version and does not read the YAML or contact external services.
 
-## Platform JWT claims
+## Process flags and environment variables
 
-Issued JWTs contain `iss`, readable `sub` (`source:subject`), one string `aud`, `iat`, `exp`, `jti`, sorted `permissions`, and signed `authorization_context`. Delegated tokens also contain `act:{sub}` and actor context. Explicitly propagated external claims are included without granting authority.
+Every operational process setting has a flag and a `SERVICEAUTH_*` environment variable. A supplied flag overrides its environment variable; an environment variable overrides the default. The YAML authorization schema is separate and is documented in [CONFIG.md](CONFIG.md). The `config-docs` output directory is a command-only setting with no environment-variable equivalent.
 
-Audience delegation modes are `disabled`, `subject`, `intersection`, `actor`, and `union`. They combine independently evaluated subject/actor permissions both during exchange and fine-grained checks. A direct exchange uses subject semantics. Tokens cache audience-level permission decisions until expiry; resource checks use current OpenFGA state.
+Malformed typed environment values use the default. Invalid flag values fail command parsing. Durations use Go syntax such as `500ms`, `15s`, or `2m`.
 
-## Controlled management bootstrap
+| Setting | Flag | Environment variable | Default | Applies to |
+|---|---|---|---|---|
+| YAML path | `--config` | `SERVICEAUTH_CONFIG` | `serviceauth.yaml` | all commands except `version` |
+| PostgreSQL URL | `--database-url` | `SERVICEAUTH_DATABASE_URL` | `postgres://postgres:postgres@localhost:5432/authservicecentral?sslmode=disable` | `run`, `migrate`, `bootstrap`, `doctor` |
+| Platform issuer | `--issuer` | `SERVICEAUTH_ISSUER` | `http://localhost:8080` | `run`/`api`, `doctor` |
+| Listen address | `--listen-address` | `SERVICEAUTH_LISTEN_ADDRESS` | `:8080` | `run`/`api` |
+| Local signing key | `--signing-key-file` | `SERVICEAUTH_SIGNING_KEY_FILE` | empty; required for local `run`/`doctor` | `run`/`api`, `doctor` |
+| Signing provider | `--signing-provider` | `SERVICEAUTH_SIGNING_PROVIDER` | `local` | `run`/`api`, `doctor` |
+| GCP KMS key version | `--gcp-kms-key` | `SERVICEAUTH_GCP_KMS_KEY` | empty; required for GCP KMS `run`/`doctor` | `run`/`api`, `doctor` |
+| Inactive local signing keys | `--inactive-signing-key-files` | `SERVICEAUTH_INACTIVE_SIGNING_KEY_FILES` | empty comma-separated list | `run`/`api`, `doctor` |
+| Configuration-docs output directory | `--output-dir` or `--output` | — | `config-docs` | `config-docs` |
+| Unauthenticated management | `--insecure-management` | `SERVICEAUTH_INSECURE_MANAGEMENT` | `false` | `run`/`api` |
+| Swagger UI | `--swagger-ui` | `SERVICEAUTH_SWAGGER_UI` | `true` | `run`/`api` |
+| Maximum check batch | `--max-batch-size` | `SERVICEAUTH_MAX_BATCH_SIZE` | `100` (1–1000) | `run`/`api` |
+| HTTP timeout | `--http-timeout` | `SERVICEAUTH_HTTP_TIMEOUT` | `15s` | `run`/`api` |
+| Shutdown timeout | `--shutdown-timeout` | `SERVICEAUTH_SHUTDOWN_TIMEOUT` | `15s` | `run`/`api` |
+| Reconciliation interval | `--reconcile-interval` | `SERVICEAUTH_RECONCILE_INTERVAL` | `2s` | `run`/`api` |
+| Reconciliation batch | `--reconcile-batch` | `SERVICEAUTH_RECONCILE_BATCH` | `100` (1–1000) | `run`/`api` |
+| Metrics | `--metrics` | `SERVICEAUTH_METRICS` | `true` | `run`/`api` |
+| Rate limit per second | `--rate-limit-per-second` | `SERVICEAUTH_RATE_LIMIT_PER_SECOND` | `0` (disabled) | `run`/`api` |
+| Rate-limit burst | `--rate-limit-burst` | `SERVICEAUTH_RATE_LIMIT_BURST` | `0` (disabled) | `run`/`api` |
+| Bootstrap source prefix | `--source` | `SERVICEAUTH_BOOTSTRAP_SOURCE` | empty; required by `bootstrap` | `bootstrap` |
+| Bootstrap subject | `--subject` | `SERVICEAUTH_BOOTSTRAP_SUBJECT` | empty; required by `bootstrap` | `bootstrap` |
+| Bootstrap role | `--role` | `SERVICEAUTH_BOOTSTRAP_ROLE` | empty; required by `bootstrap` | `bootstrap` |
+| Management audience ID | `--management-audience` | `SERVICEAUTH_MANAGEMENT_AUDIENCE` | `serviceauth-management` | `bootstrap` |
+| Management display name | `--management-display-name` | `SERVICEAUTH_MANAGEMENT_DISPLAY_NAME` | `ServiceAuth Management` | `bootstrap` |
+| Management token TTL | `--management-ttl` | `SERVICEAUTH_MANAGEMENT_TTL` | `900` seconds | `bootstrap` |
 
-After migration, run `bootstrap` from a trusted administrative environment. It verifies the active model fingerprint, validates that the source prefix and role exist, upserts the configured management audience, creates a deterministic principal grant scoped to that audience, reconciles it through OpenFGA, and emits normal audit records. Repeating the same command is idempotent.
+The rate-limit settings must both be zero or both be positive. `--insecure-management` disables only management authentication and is for isolated development; it does not make token exchange or `/v1/check` unauthenticated.
 
-The bootstrapped principal still obtains a normal platform token through RFC 8693 for the management audience. No bootstrap HTTP endpoint or permanent bypass is created. `--insecure-management` remains available only for isolated development.
+## HTTP and documentation surfaces
 
-## Errors and security
+The service’s repository and runtime reference surfaces are deliberately separate:
 
-Errors use `{"error":{"code","message","request_id"}}`; responses carry `X-Request-ID`, 401 responses include `WWW-Authenticate: Bearer`, and rate limiting returns HTTP 429. Do not expose unauthenticated management in production; use the controlled `bootstrap` command.
+- [API.md](API.md) explains request/response behavior and integration patterns.
+- [openapi.yaml](../openapi.yaml) is the machine-readable API contract served at `/openapi.yaml` when the Swagger surface is enabled.
+- [CONFIG.md](CONFIG.md) explains the deployment YAML and does not catalog process flags.
+- `config-docs` renders a redacted, browsable snapshot of one YAML file for publication as static files; it is not a runtime configuration endpoint.
+- `GET /` serves Swagger UI when enabled; it does not expose YAML configuration or private key material.
+
+The API is a standalone executable surface. Requests can be exercised with any HTTP client, including curl, Postman, a browser, or an application test harness.

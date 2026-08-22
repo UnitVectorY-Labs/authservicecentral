@@ -22,6 +22,7 @@ type Config struct {
 	GCPKMSKey               string
 	InactiveSigningKeyFiles []string
 	ManagementOpen          bool
+	SwaggerUI               bool
 	MaxBatchSize            int
 	HTTPTimeout             time.Duration
 	ShutdownTimeout         time.Duration
@@ -48,6 +49,7 @@ func Parse(command string, args []string) (Config, error) {
 		SigningProvider:       env("SERVICEAUTH_SIGNING_PROVIDER", "local"),
 		GCPKMSKey:             os.Getenv("SERVICEAUTH_GCP_KMS_KEY"),
 		ManagementOpen:        envBool("SERVICEAUTH_INSECURE_MANAGEMENT", false),
+		SwaggerUI:             envBool("SERVICEAUTH_SWAGGER_UI", true),
 		MaxBatchSize:          envInt("SERVICEAUTH_MAX_BATCH_SIZE", 100),
 		HTTPTimeout:           envDuration("SERVICEAUTH_HTTP_TIMEOUT", 15*time.Second),
 		ShutdownTimeout:       envDuration("SERVICEAUTH_SHUTDOWN_TIMEOUT", 15*time.Second),
@@ -74,6 +76,7 @@ func Parse(command string, args []string) (Config, error) {
 	fs.StringVar(&c.GCPKMSKey, "gcp-kms-key", c.GCPKMSKey, "GCP KMS asymmetric key version resource name")
 	fs.StringVar(&inactiveKeys, "inactive-signing-key-files", inactiveKeys, "comma-separated inactive local signing keys published for verification")
 	fs.BoolVar(&c.ManagementOpen, "insecure-management", c.ManagementOpen, "allow unauthenticated management API (development only)")
+	fs.BoolVar(&c.SwaggerUI, "swagger-ui", c.SwaggerUI, "serve the Swagger UI and OpenAPI document at the application root")
 	fs.IntVar(&c.MaxBatchSize, "max-batch-size", c.MaxBatchSize, "maximum checks per authorization request")
 	fs.DurationVar(&c.HTTPTimeout, "http-timeout", c.HTTPTimeout, "HTTP server read/write timeout")
 	fs.DurationVar(&c.ShutdownTimeout, "shutdown-timeout", c.ShutdownTimeout, "graceful HTTP shutdown timeout")

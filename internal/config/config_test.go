@@ -71,6 +71,24 @@ func TestParseCompleteSchema(t *testing.T) {
 	}
 }
 
+func TestManagementPermissionOverridesAreValidatedAndExposed(t *testing.T) {
+	input := strings.Replace(validYAML, "permissions:\n", "permissions:\n  platform.audiences.read:\n    resources: [audience]\n", 1)
+	input = strings.Replace(input, "permissions: [api.invoke, document.read, folder.read]", "permissions: [api.invoke, document.read, folder.read, platform.audiences.read]", 1)
+	input += "\nmanagement:\n  permissions:\n    audiences:\n      read: platform.audiences.read\n"
+	c, err := Parse([]byte(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.Management.ManagementPermissionMap()["audiences.read"]; got != "platform.audiences.read" {
+		t.Fatalf("management permission = %q", got)
+	}
+
+	bad := strings.Replace(input, "read: platform.audiences.read", "read: platform.audiences.missing", 1)
+	if _, err := Parse([]byte(bad)); err == nil || !strings.Contains(err.Error(), "management.permissions.audiences.read") {
+		t.Fatalf("unknown management permission error = %v", err)
+	}
+}
+
 func TestFingerprintIsIndependentOfMapAndYAMLOrdering(t *testing.T) {
 	a, err := Parse([]byte(validYAML))
 	if err != nil {

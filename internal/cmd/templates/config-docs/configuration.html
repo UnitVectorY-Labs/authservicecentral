@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en">
+{{template "head" .}}
+<body>
+{{template "nav" .}}
+<main id="content">
+  <h1>Full safe configuration</h1>
+  <p>This is the parsed configuration rendered in deterministic JSON order. Secret material is replaced before rendering.</p>
+  <pre><code>{{.Model.SafeConfiguration}}</code></pre>
+</main>
+</body>
+</html>

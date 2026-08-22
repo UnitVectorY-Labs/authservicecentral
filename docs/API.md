@@ -1,6 +1,6 @@
 # API
 
-The HTTP API exposes OAuth discovery and token exchange, operational probes, batched authorization checks, and authenticated management operations. The machine-readable contract is [`openapi.yaml`](../openapi.yaml).
+The HTTP API exposes OAuth discovery and token exchange, operational probes, batched authorization checks, and authenticated management operations. The machine-readable contract is [openapi.yaml](../openapi.yaml); when the Swagger surface is enabled, the same contract is served at `/openapi.yaml` and browsable at `/`.
 
 Examples below assume:
 
@@ -12,9 +12,9 @@ export APPLICATION_TOKEN='platform-jwt-for-the-application-audience'
 
 ## HTTP conventions
 
-All successful JSON responses use `Content-Type: application/json`. JSON request bodies are strict: unknown fields, malformed input, trailing JSON values, and bodies over the configured limit are rejected. Identifiers placed in a URL path must be percent-encoded when necessary.
+Successful JSON responses use `Content-Type: application/json`. JSON request bodies are strict: unknown fields, malformed input, trailing JSON values, and bodies over the configured limit are rejected. Percent-encode identifiers placed in URL paths when necessary.
 
-Every response includes `X-Request-ID`. A caller-supplied `X-Request-ID` is retained when it is at most 128 characters and contains only letters, digits, `-`, `_`, or `.`; otherwise the service generates one.
+Every response includes `X-Request-ID`. A caller-supplied ID is retained only when it is at most 128 characters and contains letters, digits, `-`, `_`, or `.`; otherwise the service generates one.
 
 Errors use this envelope:
 
@@ -28,18 +28,18 @@ Errors use this envelope:
 }
 ```
 
-Common statuses are `400` for invalid input, `401` for a missing or invalid token, `403` for the wrong management audience or a missing management permission, `404` for a missing catalog object, `429` when rate limited, `500` for an internal failure, and `503` when storage or authorization dependencies are unavailable. Authorization denial is not an error: `/v1/check` returns HTTP 200 and `allowed:false`.
+Common statuses are `400` invalid input, `401` missing/invalid token, `403` wrong management audience or missing management permission, `404` missing catalog object, `429` rate limited, `500` internal failure, and `503` unavailable storage or authorization dependencies. An authorization denial is not an HTTP error: `/v1/check` returns `200` with `allowed: false`.
 
 ## Authentication
 
-`POST /v1/check` requires a platform JWT issued by this service. The API ignores caller-supplied identity fields and derives the subject, optional actor, audience, delegation mode, and cached audience permissions from signed claims.
+`POST /v1/check` requires a platform JWT issued by this service. Subject, optional actor, audience, delegation mode, and cached audience permissions come from signed token context; caller-supplied identity fields are not authoritative.
 
-Every `/v1/*` management operation requires a platform Bearer token with:
+Every management operation below `/v1/manage/` requires a platform Bearer token with:
 
 - `aud` equal to the configured management audience, `serviceauth-management` by default; and
-- the exact `management.*` permission listed for the route.
+- the route-family permission configured in YAML, or its conventional `management.<family>.<operation>` default.
 
-Pass tokens using `Authorization: Bearer <token>`. The development-only `--insecure-management` option bypasses management authentication and must not be enabled in production.
+Pass tokens as `Authorization: Bearer <token>`. The development-only `--insecure-management` setting bypasses management authentication and must not be enabled in production.
 
 ## Discovery, token exchange, and operations
 
@@ -49,10 +49,12 @@ Pass tokens using `Authorization: Bearer <token>`. The development-only `--insec
 | `GET /.well-known/jwks.json` | None | Active and configured inactive public verification keys. |
 | `POST /oauth2/token` | Trusted JWT in form | RFC 8693 token exchange. |
 | `GET /health/live` | None | Process liveness; returns `{"status":"ok"}`. |
-| `GET /health/ready` | None | Database, active-model fingerprint, and signer readiness; returns `{"status":"ready"}` or 503. |
-| `GET /metrics` | None | Prometheus text metrics when metrics are enabled. |
+| `GET /health/ready` | None | Database, active-model, and signer readiness; returns `200` or `503`. |
+| `GET /metrics` | None | Prometheus text metrics when enabled. |
+| `GET /` | None | Swagger UI when `SERVICEAUTH_SWAGGER_UI`/`--swagger-ui` is enabled. |
+| `GET /openapi.yaml` | None | Embedded OpenAPI document when the Swagger surface is enabled. |
 
-Token exchange requires `application/x-www-form-urlencoded`:
+Token exchange uses `application/x-www-form-urlencoded`:
 
 ```bash
 curl -sS "$SERVICEAUTH_URL/oauth2/token" \
@@ -76,7 +78,7 @@ For delegated exchange, include both `actor_token` and `actor_token_type=urn:iet
 
 ## Permission checks
 
-`POST /v1/check` evaluates between one and the configured maximum number of checks, preserving request order and caller-provided IDs.
+`POST /v1/check` evaluates one to the configured maximum number of checks and preserves request order and IDs.
 
 ```bash
 curl -sS "$SERVICEAUTH_URL/v1/check" \
@@ -92,116 +94,98 @@ curl -sS "$SERVICEAUTH_URL/v1/check" \
 {"results":[{"id":"read-123","allowed":true},{"id":"edit-123","allowed":false}]}
 ```
 
-Each permission must exist in the deployment schema and apply to the requested resource type.
+Each permission must exist in YAML and apply to the requested resource type. The token’s signed authorization context, rather than a request field, supplies the subject and optional actor.
 
-## Audiences
+## Management API
 
-| Method and path | Required permission | Result |
+All management paths share the `/v1/manage/` prefix. The required permission names below are defaults; [CONFIG.md](CONFIG.md) describes how a deployment can map each family to a different audience-applicable permission.
+
+### Audiences
+
+| Method and path | Permission | Result |
 |---|---|---|
-| `POST /v1/audiences` | `management.audiences.write` | Create or update an audience; 201 with the stored audience. |
-| `GET /v1/audiences` | `management.audiences.read` | `{"audiences":[...]}`. |
-| `GET /v1/audiences/{id}` | `management.audiences.read` | One audience. |
-| `PATCH /v1/audiences/{id}` | `management.audiences.write` | Partially update an audience. |
-| `DELETE /v1/audiences/{id}` | `management.audiences.write` | Idempotent deletion; 204. |
+| `POST /v1/manage/audiences` | `management.audiences.write` | Create or replace an audience; `201`. |
+| `GET /v1/manage/audiences` | `management.audiences.read` | `{"audiences":[...]}`. |
+| `GET /v1/manage/audiences/{id}` | `management.audiences.read` | One audience. |
+| `PATCH /v1/manage/audiences/{id}` | `management.audiences.write` | Partial update. |
+| `DELETE /v1/manage/audiences/{id}` | `management.audiences.write` | Idempotent deletion; `204`. |
 
 Create or replace an audience:
 
 ```bash
-curl -sS "$SERVICEAUTH_URL/v1/audiences" \
+curl -sS "$SERVICEAUTH_URL/v1/manage/audiences" \
   -H "Authorization: Bearer $MANAGEMENT_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{
-    "id":"documents-api",
-    "display_name":"Documents API",
-    "token_ttl_seconds":900,
-    "delegation":{"enabled":true,"mode":"intersection"}
-  }'
+  -d '{"id":"documents-api","display_name":"Documents API","token_ttl_seconds":900,"delegation":{"enabled":true,"mode":"intersection"}}'
 ```
 
-Delegation modes are `disabled`, `subject`, `intersection`, `actor`, and `union`. Setting `enabled:false` stores the audience as `disabled`. A patch may contain any subset of `display_name`, `token_ttl_seconds`, and `delegation`.
+Delegation modes are `disabled`, `subject`, `intersection`, `actor`, and `union`. A patch may contain any subset of `display_name`, `token_ttl_seconds`, and `delegation`.
 
-## Resources and relationships
+### Resources and relationships
 
-| Method and path | Required permission | Result |
+| Method and path | Permission | Result |
 |---|---|---|
-| `POST /v1/resources` | `management.resources.write` | Create a configured resource; 201. |
-| `GET /v1/resources/{type}/{id}` | `management.resources.read` | Resource metadata and relationships. |
-| `PATCH /v1/resources/{type}/{id}` | `management.resources.write` | Replace metadata; 200. |
-| `DELETE /v1/resources/{type}/{id}` | `management.resources.write` | Delete catalog and authorization state; idempotent 204. |
-| `PUT /v1/resources/{type}/{id}/relationships/{relation}` | `management.resources.write` | Add or replace specified targets; 204. |
-| `DELETE /v1/resources/{type}/{id}/relationships/{relation}` | `management.resources.write` | Remove specified targets, or all targets when the body is absent; 204. |
+| `POST /v1/manage/resources` | `management.resources.write` | Create a configured resource; `201`. |
+| `GET /v1/manage/resources/{type}/{id}` | `management.resources.read` | Resource metadata and relationships. |
+| `PATCH /v1/manage/resources/{type}/{id}` | `management.resources.write` | Replace metadata; `200`. |
+| `DELETE /v1/manage/resources/{type}/{id}` | `management.resources.write` | Delete catalog and authorization state; idempotent `204`. |
+| `PUT /v1/manage/resources/{type}/{id}/relationships/{relation}` | `management.resources.write` | Add or replace relationship targets; `204`. |
+| `DELETE /v1/manage/resources/{type}/{id}/relationships/{relation}` | `management.resources.write` | Remove targets, or all targets with no body; `204`. |
 
-Create a resource with relationship targets. A relationship value may be one resource reference or an array:
+Create a resource with optional relationship targets:
 
 ```bash
-curl -sS "$SERVICEAUTH_URL/v1/resources" \
+curl -sS "$SERVICEAUTH_URL/v1/manage/resources" \
   -H "Authorization: Bearer $MANAGEMENT_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{
-    "type":"document",
-    "id":"123",
-    "metadata":{"title":"Quarterly plan"},
-    "relationships":{"parent":{"type":"folder","id":"finance"}}
-  }'
+  -d '{"type":"document","id":"123","metadata":{"title":"Quarterly plan"},"relationships":{"parent":{"type":"folder","id":"finance"}}}'
 ```
 
-Mutate an existing relationship using either `target` or `targets`:
+A relationship value may be one target or an array. Relationship names, target types, cardinality, requiredness, and inherited permissions come from the active YAML schema.
+
+### Groups and memberships
+
+| Method and path | Permission | Result |
+|---|---|---|
+| `POST /v1/manage/groups` | `management.groups.write` | Create a group; `201`. |
+| `GET /v1/manage/groups/{id}` | `management.groups.read` | One group. |
+| `DELETE /v1/manage/groups/{id}` | `management.groups.write` | Idempotent deletion; `204`. |
+| `POST /v1/manage/groups/{id}/members` | `management.groups.write` | Add a principal or nested group; `204`. |
+| `DELETE /v1/manage/groups/{id}/members` | `management.groups.write` | Remove an exact member; `204`, or `404` if absent. |
+
+Membership examples:
 
 ```json
-{"target":{"type":"folder","id":"legal"}}
+{"member":{"type":"principal","source":"corporate","subject":"alice"}}
 ```
 
-Relationship names, target types, cardinality, required relationships, and inherited permissions are enforced from the deployment schema.
-
-## Groups and memberships
-
-| Method and path | Required permission | Result |
-|---|---|---|
-| `POST /v1/groups` | `management.groups.write` | Create a group; 201. |
-| `GET /v1/groups/{id}` | `management.groups.read` | One group. |
-| `DELETE /v1/groups/{id}` | `management.groups.write` | Idempotent deletion; 204. |
-| `POST /v1/groups/{id}/members` | `management.groups.write` | Add a principal or nested group; 204. |
-| `DELETE /v1/groups/{id}/members` | `management.groups.write` | Remove the exact member; 204, or 404 when absent. |
-
-Create a group and add a principal:
-
-```bash
-curl -sS "$SERVICEAUTH_URL/v1/groups" \
-  -H "Authorization: Bearer $MANAGEMENT_TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"id":"finance","display_name":"Finance"}'
-
-curl -sS "$SERVICEAUTH_URL/v1/groups/finance/members" \
-  -H "Authorization: Bearer $MANAGEMENT_TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"member":{"type":"principal","source":"corporate","subject":"alice"}}'
+```json
+{"member":{"type":"group","group":"engineering"}}
 ```
 
-A nested group member uses `{"type":"group","group":"group-id"}`. Both groups must already exist, and cycles are rejected.
+Both groups must exist before a nested membership is added, and cycles are rejected.
 
-## Grants
+### Grants
 
-| Method and path | Required permission | Result |
+| Method and path | Permission | Result |
 |---|---|---|
-| `POST /v1/grants` | `management.grants.write` | Create a resource-scoped role grant; 201. |
-| `GET /v1/grants` | `management.grants.read` | `{"grants":[...]}`. |
-| `DELETE /v1/grants/{id}` | `management.grants.write` | Idempotent deletion; 204. |
+| `POST /v1/manage/grants` | `management.grants.write` | Create a resource-scoped role grant; `201`. |
+| `GET /v1/manage/grants` | `management.grants.read` | `{"grants":[...]}`. |
+| `DELETE /v1/manage/grants/{id}` | `management.grants.write` | Idempotent deletion; `204`. |
 
 Grant a configured role to a principal:
 
 ```bash
-curl -sS "$SERVICEAUTH_URL/v1/grants" \
+curl -sS "$SERVICEAUTH_URL/v1/manage/grants" \
   -H "Authorization: Bearer $MANAGEMENT_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{
-    "subject":{"type":"principal","source":"corporate","subject":"alice"},
-    "role":"editor",
-    "resource":{"type":"document","id":"123"}
-  }'
+  -d '{"subject":{"type":"principal","source":"corporate","subject":"alice"},"role":"editor","resource":{"type":"document","id":"123"}}'
 ```
 
-The subject may instead be a group. `id` is optional and generated when absent. `create_resource_if_missing:true` may create only a parentless application resource whose configured type has no required relationships; audiences and groups must be created through their own APIs. Semantically identical retries return the existing grant.
+The subject may instead be a group. `id` is optional and generated when absent. `create_resource_if_missing:true` may create only a parentless application resource whose type has no required relationships; audiences and groups use their own APIs. Semantically identical retries return the existing grant.
 
-## Consistency and lifecycle behavior
+## Lifecycle and consistency
 
-Successful management mutations are committed to PostgreSQL, reconciled synchronously to embedded OpenFGA, and recorded in the audit log before the response is returned. A background reconciler retries interrupted outbox work. Deleting catalog objects removes associated grants and relationship tuples. Platform tokens retain their audience-level permission list until expiry, while `/v1/check` evaluates current resource state.
+Successful management mutations are committed to PostgreSQL, reconciled synchronously to embedded OpenFGA, and recorded in the audit log before success is returned. A background reconciler retries interrupted outbox work. Deleting catalog objects removes associated grants and relationship tuples. Platform tokens retain audience-level permissions until expiry, while `/v1/check` evaluates current resource state.
+
+The API never exposes the private signing key or the complete YAML configuration. The repository’s configuration reference is [CONFIG.md](CONFIG.md); the runtime documentation surface at `/` is API-only.

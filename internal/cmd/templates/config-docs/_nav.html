@@ -1,0 +1,14 @@
+{{define "nav"}}
+<header>
+  <a href="index.html"><strong>AuthServiceCentral configuration</strong></a>
+  <nav hx-boost="true" hx-target="#content" hx-select="#content" hx-push-url="true" aria-label="Configuration documentation">
+    <a href="index.html"{{if eq .Active "overview"}} aria-current="page"{{end}}>Overview</a>
+    <a href="configuration.html"{{if eq .Active "configuration"}} aria-current="page"{{end}}>Full safe configuration</a>
+    <a href="token-sources.html"{{if eq .Active "token-sources"}} aria-current="page"{{end}}>Token sources</a>
+    <a href="permissions.html"{{if eq .Active "permissions"}} aria-current="page"{{end}}>Permissions</a>
+    <a href="roles.html"{{if eq .Active "roles"}} aria-current="page"{{end}}>Roles</a>
+    <a href="resources.html"{{if eq .Active "resources"}} aria-current="page"{{end}}>Resources</a>
+    <a href="management-permissions.html"{{if eq .Active "management"}} aria-current="page"{{end}}>Management permissions</a>
+  </nav>
+</header>
+{{end}}

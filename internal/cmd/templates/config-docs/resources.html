@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+{{template "head" .}}
+<body>
+{{template "nav" .}}
+<main id="content">
+  <h1>Resources</h1>
+  <p>Configured resource types, relationship targets, cardinality, and inherited permissions.</p>
+  {{range .Model.Resources}}
+  <section>
+    <h2><code>{{.Name}}</code></h2>
+    <h3>Relationships</h3>
+    {{if .Relationships}}
+    <table>
+      <tr><th>Relationship</th><th>Targets</th><th>Cardinality</th><th>Required</th></tr>
+      {{range .Relationships}}<tr><td><code>{{.Name}}</code></td><td><code>{{join .Targets ", "}}</code></td><td>{{.Cardinality}}</td><td>{{.Required}}</td></tr>{{end}}
+    </table>
+    {{else}}<p class="muted">No relationships configured.</p>{{end}}
+    <h3>Inheritance</h3>
+    {{if .Inheritance}}
+    <table>
+      <tr><th>Through relationship</th><th>Inherited permissions</th></tr>
+      {{range .Inheritance}}<tr><td><code>{{.Relationship}}</code></td><td><code>{{join .Permissions ", "}}</code></td></tr>{{end}}
+    </table>
+    {{else}}<p class="muted">No inherited permissions configured.</p>{{end}}
+  </section>
+  {{else}}<p>No resources configured.</p>{{end}}
+</main>
+</body>
+</html>

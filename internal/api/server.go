@@ -20,6 +20,13 @@ type Options struct {
 	MaxBatchSize       int
 	InsecureManagement bool
 	ManagementAudience string
+	// ManagementPermissions maps route keys such as audiences.read to the
+	// permission configured for that operation. Omitted keys use the standard
+	// management.<family>.<operation> name.
+	ManagementPermissions map[string]string
+	// SwaggerUI enables the static API reference at / and /openapi.yaml.
+	SwaggerUI          bool
+	OpenAPISpec        []byte
 	Metrics            bool
 	RateLimitPerSecond float64
 	RateLimitBurst     int
@@ -62,6 +69,7 @@ func New(backend Backend, authenticator Authenticator, options Options) (*Server
 	if options.ManagementAudience == "" {
 		options.ManagementAudience = "serviceauth-management"
 	}
+	options.ManagementPermissions = mergeManagementPermissions(options.ManagementPermissions)
 	if options.RateLimitPerSecond < 0 || options.RateLimitBurst < 0 {
 		return nil, errors.New("API rate limit and burst cannot be negative")
 	}
@@ -78,30 +86,35 @@ func New(backend Backend, authenticator Authenticator, options Options) (*Server
 	if options.Metrics {
 		mux.HandleFunc("GET /metrics", s.metrics)
 	}
+	if options.SwaggerUI {
+		mux.HandleFunc("GET /", s.swagger)
+		mux.HandleFunc("GET /openapi.yaml", s.openapi)
+		mux.Handle("GET /swagger-ui/", http.StripPrefix("/swagger-ui/", http.FileServer(http.FS(swaggerStaticFS))))
+	}
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, r, Error(http.StatusNotFound, "not_found", "endpoint not found"))
 	})
 
 	mux.Handle("POST /v1/check", s.authenticated(http.HandlerFunc(s.check)))
-	mux.Handle("POST /v1/audiences", s.management("management.audiences.write", http.HandlerFunc(s.createAudience)))
-	mux.Handle("GET /v1/audiences", s.management("management.audiences.read", http.HandlerFunc(s.listAudiences)))
-	mux.Handle("GET /v1/audiences/{id}", s.management("management.audiences.read", http.HandlerFunc(s.getAudience)))
-	mux.Handle("PATCH /v1/audiences/{id}", s.management("management.audiences.write", http.HandlerFunc(s.patchAudience)))
-	mux.Handle("DELETE /v1/audiences/{id}", s.management("management.audiences.write", http.HandlerFunc(s.deleteAudience)))
-	mux.Handle("POST /v1/resources", s.management("management.resources.write", http.HandlerFunc(s.createResource)))
-	mux.Handle("GET /v1/resources/{type}/{id}", s.management("management.resources.read", http.HandlerFunc(s.getResource)))
-	mux.Handle("PATCH /v1/resources/{type}/{id}", s.management("management.resources.write", http.HandlerFunc(s.patchResource)))
-	mux.Handle("DELETE /v1/resources/{type}/{id}", s.management("management.resources.write", http.HandlerFunc(s.deleteResource)))
-	mux.Handle("PUT /v1/resources/{type}/{id}/relationships/{relation}", s.management("management.resources.write", http.HandlerFunc(s.putRelationship)))
-	mux.Handle("DELETE /v1/resources/{type}/{id}/relationships/{relation}", s.management("management.resources.write", http.HandlerFunc(s.deleteRelationship)))
-	mux.Handle("POST /v1/groups", s.management("management.groups.write", http.HandlerFunc(s.createGroup)))
-	mux.Handle("GET /v1/groups/{id}", s.management("management.groups.read", http.HandlerFunc(s.getGroup)))
-	mux.Handle("DELETE /v1/groups/{id}", s.management("management.groups.write", http.HandlerFunc(s.deleteGroup)))
-	mux.Handle("POST /v1/groups/{id}/members", s.management("management.groups.write", http.HandlerFunc(s.addMember)))
-	mux.Handle("DELETE /v1/groups/{id}/members", s.management("management.groups.write", http.HandlerFunc(s.deleteMember)))
-	mux.Handle("POST /v1/grants", s.management("management.grants.write", http.HandlerFunc(s.createGrant)))
-	mux.Handle("GET /v1/grants", s.management("management.grants.read", http.HandlerFunc(s.listGrants)))
-	mux.Handle("DELETE /v1/grants/{id}", s.management("management.grants.write", http.HandlerFunc(s.deleteGrant)))
+	mux.Handle("POST /v1/manage/audiences", s.management("audiences.write", http.HandlerFunc(s.createAudience)))
+	mux.Handle("GET /v1/manage/audiences", s.management("audiences.read", http.HandlerFunc(s.listAudiences)))
+	mux.Handle("GET /v1/manage/audiences/{id}", s.management("audiences.read", http.HandlerFunc(s.getAudience)))
+	mux.Handle("PATCH /v1/manage/audiences/{id}", s.management("audiences.write", http.HandlerFunc(s.patchAudience)))
+	mux.Handle("DELETE /v1/manage/audiences/{id}", s.management("audiences.write", http.HandlerFunc(s.deleteAudience)))
+	mux.Handle("POST /v1/manage/resources", s.management("resources.write", http.HandlerFunc(s.createResource)))
+	mux.Handle("GET /v1/manage/resources/{type}/{id}", s.management("resources.read", http.HandlerFunc(s.getResource)))
+	mux.Handle("PATCH /v1/manage/resources/{type}/{id}", s.management("resources.write", http.HandlerFunc(s.patchResource)))
+	mux.Handle("DELETE /v1/manage/resources/{type}/{id}", s.management("resources.write", http.HandlerFunc(s.deleteResource)))
+	mux.Handle("PUT /v1/manage/resources/{type}/{id}/relationships/{relation}", s.management("resources.write", http.HandlerFunc(s.putRelationship)))
+	mux.Handle("DELETE /v1/manage/resources/{type}/{id}/relationships/{relation}", s.management("resources.write", http.HandlerFunc(s.deleteRelationship)))
+	mux.Handle("POST /v1/manage/groups", s.management("groups.write", http.HandlerFunc(s.createGroup)))
+	mux.Handle("GET /v1/manage/groups/{id}", s.management("groups.read", http.HandlerFunc(s.getGroup)))
+	mux.Handle("DELETE /v1/manage/groups/{id}", s.management("groups.write", http.HandlerFunc(s.deleteGroup)))
+	mux.Handle("POST /v1/manage/groups/{id}/members", s.management("groups.write", http.HandlerFunc(s.addMember)))
+	mux.Handle("DELETE /v1/manage/groups/{id}/members", s.management("groups.write", http.HandlerFunc(s.deleteMember)))
+	mux.Handle("POST /v1/manage/grants", s.management("grants.write", http.HandlerFunc(s.createGrant)))
+	mux.Handle("GET /v1/manage/grants", s.management("grants.read", http.HandlerFunc(s.listGrants)))
+	mux.Handle("DELETE /v1/manage/grants/{id}", s.management("grants.write", http.HandlerFunc(s.deleteGrant)))
 	s.handler = s.requestID(s.recover(s.count(s.rateLimit(mux))))
 	return s, nil
 }
@@ -143,7 +156,8 @@ func (s *Server) authenticated(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), identityKey{}, identity)))
 	})
 }
-func (s *Server) management(permission string, next http.Handler) http.Handler {
+func (s *Server) management(key string, next http.Handler) http.Handler {
+	permission := s.options.ManagementPermissions[key]
 	if s.options.InsecureManagement {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), identityKey{}, Identity{Subject: "development-insecure-management"})))
@@ -167,6 +181,25 @@ func (s *Server) management(permission string, next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), identityKey{}, identity)))
 	})
+}
+
+func mergeManagementPermissions(configured map[string]string) map[string]string {
+	result := map[string]string{
+		"audiences.read":  "management.audiences.read",
+		"audiences.write": "management.audiences.write",
+		"resources.read":  "management.resources.read",
+		"resources.write": "management.resources.write",
+		"groups.read":     "management.groups.read",
+		"groups.write":    "management.groups.write",
+		"grants.read":     "management.grants.read",
+		"grants.write":    "management.grants.write",
+	}
+	for key, permission := range configured {
+		if permission != "" {
+			result[key] = permission
+		}
+	}
+	return result
 }
 
 func (s *Server) auditAuthenticationFailure(r *http.Request, category string) {

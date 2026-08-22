@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+{{template "head" .}}
+<body>
+{{template "nav" .}}
+<main id="content">
+  <h1>Management permission mappings</h1>
+  <p>Management API routes require the listed permission on the management audience. Configuration status and roles are taken from the YAML schema.</p>
+  {{range .Model.ManagementPermissions}}
+  <section>
+    <h2><code>{{.Permission}}</code></h2>
+    <p><strong>Configured:</strong> {{.Configured}}</p>
+    {{if .Configured}}<p><strong>Resource types:</strong> <code>{{join .Resources ", "}}</code></p>{{end}}
+    <p><strong>Configured roles:</strong>
+      {{if .Roles}}<code>{{join .Roles ", "}}</code>{{else}}<span class="muted">none</span>{{end}}
+    </p>
+    <h3>API routes</h3>
+    {{if .Routes}}
+    <table>
+      <tr><th>Method</th><th>Path</th></tr>
+      {{range .Routes}}<tr><td><code>{{.Method}}</code></td><td><code>{{.Path}}</code></td></tr>{{end}}
+    </table>
+    {{else}}<p class="muted">This configured management permission is not attached to a built-in route.</p>{{end}}
+  </section>
+  {{else}}<p>No management permissions or built-in management routes.</p>{{end}}
+</main>
+</body>
+</html>

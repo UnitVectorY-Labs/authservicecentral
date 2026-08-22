@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+{{template "head" .}}
+<body>
+{{template "nav" .}}
+<main id="content">
+  <h1>Token sources</h1>
+  <p>Trusted external JWT issuers, key selection, identity mapping, validation rules, and explicitly propagated claims.</p>
+  {{range .Model.TokenSources}}
+  <section>
+    <h2><code>{{.Name}}</code></h2>
+    <table>
+      <tr><th>Issuer</th><td><code>{{.Issuer}}</code></td></tr>
+      <tr><th>Key mode</th><td>{{.KeyMode}}<br><span class="muted">{{.KeyDetails}}</span></td></tr>
+      <tr><th>Algorithms</th><td><code>{{join .Algorithms ", "}}</code></td></tr>
+      <tr><th>Subject claim</th><td><code>{{.SubjectClaim}}</code></td></tr>
+      <tr><th>Principal prefix</th><td><code>{{.Prefix}}</code></td></tr>
+    </table>
+    <h3>Validation</h3>
+    {{if .Validation}}
+    <table>
+      <tr><th>Scope</th><th>Operation</th><th>Value</th></tr>
+      {{range .Validation}}<tr><td>{{.Scope}}</td><td><code>{{.Operation}}</code></td><td><code>{{.Value}}</code></td></tr>{{end}}
+    </table>
+    {{else}}<p class="muted">No additional validation rules.</p>{{end}}
+    <h3>Propagated claims</h3>
+    {{if .PropagatedClaims}}
+    <table>
+      <tr><th>Output claim</th><th>Source claim</th></tr>
+      {{range .PropagatedClaims}}<tr><td><code>{{.Claim}}</code></td><td><code>{{.From}}</code></td></tr>{{end}}
+    </table>
+    {{else}}<p class="muted">No external claims are propagated.</p>{{end}}
+  </section>
+  {{else}}<p>No token sources configured.</p>{{end}}
+</main>
+</body>
+</html>

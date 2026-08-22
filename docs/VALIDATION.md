@@ -1,69 +1,64 @@
 # Validation
 
-This file records the reproducible validation path. Unit tests are hermetic; the end-to-end test is explicitly guarded because it creates and drops a PostgreSQL database.
+Validation should prove both the configuration compiler and the running service contract. Use a disposable PostgreSQL 18-compatible environment for integration tests. The environment may be local, Docker-based, supplied by another container runtime, CI-managed, or remote; the test procedure does not depend on one tool.
 
-## Unit and static validation
+## Unit and static checks
 
 ```bash
-GOCACHE=/tmp/authservicecentral-go-cache go test ./...
-GOCACHE=/tmp/authservicecentral-go-cache go vet ./...
+go test ./...
+go vet ./...
+go build ./...
 ```
-
-Expected evidence: every package prints `ok` or `[no test files]`; no build, test, or vet failures.
 
 Validate a deployment file after replacing the example public key:
 
 ```bash
-go run . validate --config examples/serviceauth.yaml
-go run . model --config examples/serviceauth.yaml
+authservicecentral validate --config examples/serviceauth.yaml
+authservicecentral model --config examples/serviceauth.yaml
+authservicecentral config-docs --config examples/serviceauth.yaml --output-dir ./config-reference
 ```
 
-Expected evidence: `validate` prints a 64-character fingerprint; `model` prints OpenFGA schema `1.1` with intrinsic `principal`, recursive `group#member`, `audience`, role relations, permission relations, and relationship tuple-to-userset rewrites.
+Expected evidence is a 64-character configuration fingerprint from `validate` and an OpenFGA 1.1 JSON model from `model`, including intrinsic principal/group/audience behavior, role relations, permission relations, and configured resource relationships.
 
-## PostgreSQL 18 end to end
+The configuration documentation command should report seven generated pages. Review `configuration.html` to confirm JWK/key material and private PEM material are redacted while non-sensitive trust metadata such as issuer, key mode, and JWKS URL remains visible.
 
-Start PostgreSQL with `container`:
+## PostgreSQL-backed integration
 
-```bash
-container run --name authservicecentral-test-postgres \
-  -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=postgres -p 5432:5432 -d postgres:18
-container logs authservicecentral-test-postgres
-```
-
-Once the log reports that PostgreSQL is ready:
+Set `SERVICEAUTH_TEST_DATABASE_URL` to an administrative PostgreSQL URL for a disposable test environment, then run the guarded end-to-end suite:
 
 ```bash
 SERVICEAUTH_TEST_DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' \
-GOCACHE=/tmp/authservicecentral-go-cache \
 go test -v ./internal/integration -run TestPostgresEndToEnd -count=1
 ```
 
-The test creates a random database and records subtests for:
+The suite creates and removes an isolated database. It covers:
 
-- application and official OpenFGA migrations/model activation;
-- deterministic, idempotent management-audience bootstrap and initial administrator grant;
-- liveness, readiness, metadata, JWKS, and strict management transport;
-- audiences, resources, relationships, nested groups, memberships, grants, and outbox drain;
-- locally signed external RSA JWT trust, RFC 8693 exchange, claim propagation, and platform claims;
-- inherited allow and HTTP-200 denial, relationship move revocation, validation errors, deletion cleanup, and implicit resource creation;
-- direct exchange and all delegation modes;
-- persistence across runtime restart, fail-closed fingerprint mismatch, and model N→N+1 tuple continuity.
+- application and supported OpenFGA migrations/model activation;
+- deterministic, idempotent management bootstrap;
+- liveness, readiness, OAuth metadata, JWKS, Swagger gating, and strict HTTP transport;
+- the `/v1/manage/` audience, resource, relationship, group, membership, and grant APIs;
+- signed external JWT trust, RFC 8693 exchange, claim propagation, and platform claims;
+- inherited allow/deny decisions, relationship moves, validation errors, deletion cleanup, and implicit resource creation;
+- direct exchange and delegation modes; and
+- persistence across restart, fail-closed fingerprint mismatch, and model continuity.
 
-Expected final evidence is `--- PASS: TestPostgresEndToEnd`. The test aborts rather than weakening an assertion if a required runtime surface is missing.
+Expected evidence is `--- PASS: TestPostgresEndToEnd` with no skipped security or lifecycle assertions.
 
-Stop the container afterward:
+## Manual HTTP verification
 
-```bash
-container stop authservicecentral-test-postgres
-```
+Use any HTTP client, such as curl, Postman, a browser, or an application test harness, to verify:
 
-## Manual signed external token
+1. `GET /` and `GET /openapi.yaml` when Swagger is enabled.
+2. `404` for those two paths when Swagger is disabled.
+3. OAuth metadata, JWKS, liveness, and readiness.
+4. Token exchange with a valid trusted external JWT.
+5. `401` for missing/invalid bearer tokens on `/v1/check` and `/v1/manage/...`.
+6. `403` for a valid token with the wrong audience or missing route permission.
+7. Management mutations under `/v1/manage/`, never the old root-level management paths.
+8. HTTP `200` with `allowed:false` for a legitimate denied permission check.
 
-For local testing, generate an RSA key and configure its public SubjectPublicKeyInfo PEM in `token_sources.*.keys.public_key`. Create a compact RS256 JWT with matching `kid`, configured `iss`/`aud`, future `exp`, required claims, and a subject. Sign the ASCII `base64url(header).base64url(payload)` SHA-256 digest with RSA PKCS#1 v1.5. The integration test contains a standard-library-only implementation suitable as executable reference.
+## Key-handling checks
 
-Never put the external private test key or the platform private signing key into YAML, source control, logs, JWKS, or tokens.
+For local testing, use a dedicated RSA key and configure only its public SubjectPublicKeyInfo PEM in `token_sources.*.keys.public_key`. The external token must match the configured issuer, audience, algorithm, key ID, required claims, expiry, and subject.
 
-## Recorded validation
-
-On 2026-08-21 the repository passed `go test ./...`, `go vet ./...`, `go build ./...`, the PostgreSQL-backed OpenFGA integration tests, and the complete `TestPostgresEndToEnd` suite against the `postgres:18` image launched with `container`. The end-to-end run included the controlled bootstrap command and every subtest listed above.
+Never put an external private test key or platform private signing key into YAML, source control, logs, JWKS, or tokens. KMS deployments must not export private key material.

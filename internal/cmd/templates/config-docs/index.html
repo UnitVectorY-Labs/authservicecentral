@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+{{template "head" .}}
+<body>
+{{template "nav" .}}
+<main id="content">
+  <h1>Configuration overview</h1>
+  <p>Static reference for the validated authorization schema. This directory is safe to publish because key and secret material is redacted.</p>
+  <div class="cards">
+    <div class="card"><span class="number">{{.Model.Counts.TokenSources}}</span> token sources</div>
+    <div class="card"><span class="number">{{.Model.Counts.Permissions}}</span> permissions</div>
+    <div class="card"><span class="number">{{.Model.Counts.Roles}}</span> roles</div>
+    <div class="card"><span class="number">{{.Model.Counts.Resources}}</span> resources</div>
+    <div class="card"><span class="number">{{.Model.Counts.ManagementPermissions}}</span> management permissions</div>
+    <div class="card"><span class="number">{{.Model.Counts.ManagementRoutes}}</span> management routes</div>
+  </div>
+  <section>
+    <h2>Schema identity</h2>
+    <dl>
+      <dt>Schema version</dt><dd>{{.Model.Version}}</dd>
+      <dt>Configuration fingerprint</dt><dd><code>{{.Model.Fingerprint}}</code></dd>
+    </dl>
+  </section>
+  <section class="warning">
+    <h2>Safe publication</h2>
+    <p>The full configuration page preserves configuration shape and public trust metadata, but replaces private JWK parameters, private PEM blocks, and secret-like fields with <code>[REDACTED]</code>.</p>
+  </section>
+</main>
+</body>
+</html>

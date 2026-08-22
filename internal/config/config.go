@@ -31,6 +31,47 @@ type Config struct {
 	Permissions  map[string]Permission  `yaml:"permissions" json:"permissions"`
 	Roles        map[string]Role        `yaml:"roles" json:"roles"`
 	Resources    map[string]Resource    `yaml:"resources" json:"resources"`
+	Management   Management             `yaml:"management,omitempty" json:"management,omitempty"`
+}
+
+// Management contains the permissions required by the authenticated
+// management API. The values are deployment policy: changing a route's
+// required permission does not change the authorization model itself.
+type Management struct {
+	Permissions ManagementPermissions `yaml:"permissions,omitempty" json:"permissions,omitempty"`
+}
+
+// ManagementPermissions groups the read and write permissions for each
+// management API family. Empty values use the conventional management.* name.
+type ManagementPermissions struct {
+	Audiences PermissionPair `yaml:"audiences,omitempty" json:"audiences,omitempty"`
+	Resources PermissionPair `yaml:"resources,omitempty" json:"resources,omitempty"`
+	Groups    PermissionPair `yaml:"groups,omitempty" json:"groups,omitempty"`
+	Grants    PermissionPair `yaml:"grants,omitempty" json:"grants,omitempty"`
+}
+
+type PermissionPair struct {
+	Read  string `yaml:"read,omitempty" json:"read,omitempty"`
+	Write string `yaml:"write,omitempty" json:"write,omitempty"`
+}
+
+// ManagementPermissionMap returns only explicitly configured requirements.
+// The HTTP layer fills omitted entries with the conventional defaults.
+func (m Management) ManagementPermissionMap() map[string]string {
+	result := map[string]string{}
+	add := func(resource string, pair PermissionPair) {
+		if pair.Read != "" {
+			result[resource+".read"] = pair.Read
+		}
+		if pair.Write != "" {
+			result[resource+".write"] = pair.Write
+		}
+	}
+	add("audiences", m.Permissions.Audiences)
+	add("resources", m.Permissions.Resources)
+	add("groups", m.Permissions.Groups)
+	add("grants", m.Permissions.Grants)
+	return result
 }
 
 type TokenSource struct {
@@ -261,6 +302,16 @@ func (c *Config) Validate() error {
 			if _, ok := c.Permissions[p]; !ok {
 				add("roles.%s.permissions: unknown permission %q", name, p)
 			}
+		}
+	}
+	for key, permission := range c.Management.ManagementPermissionMap() {
+		definition, ok := c.Permissions[permission]
+		if !ok {
+			add("management.permissions.%s: unknown permission %q", key, permission)
+			continue
+		}
+		if !contains(definition.Resources, "audience") {
+			add("management.permissions.%s: permission %q must apply to audience", key, permission)
 		}
 	}
 	prefixes := map[string]string{}

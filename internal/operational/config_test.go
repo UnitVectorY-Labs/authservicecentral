@@ -14,6 +14,24 @@ func TestParseFlagOverridesEnvironment(t *testing.T) {
 	}
 }
 
+func TestSwaggerUICanBeToggledByEnvironmentAndFlag(t *testing.T) {
+	t.Setenv("SERVICEAUTH_SWAGGER_UI", "false")
+	c, err := Parse("validate", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.SwaggerUI {
+		t.Fatal("Swagger UI environment toggle was ignored")
+	}
+	c, err = Parse("validate", []string{"--swagger-ui=true"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.SwaggerUI {
+		t.Fatal("Swagger UI flag was ignored")
+	}
+}
+
 func TestParseRejectsInvalidBatch(t *testing.T) {
 	if _, err := Parse("run", []string{"--max-batch-size", "0"}); err == nil {
 		t.Fatal("expected error")

@@ -20,6 +20,9 @@ func (fakeAuth) Authenticate(_ context.Context, token string) (Identity, error) 
 	if token == "limited" {
 		return Identity{Subject: "corp:bob", Audience: "serviceauth-management"}, nil
 	}
+	if token == "custom" {
+		return Identity{Subject: "corp:custom", Audience: "serviceauth-management", Permissions: []string{"custom.audiences.read"}}, nil
+	}
 	return Identity{Subject: "corp:alice", Audience: "serviceauth-management", Permissions: []string{"management.audiences.read", "management.audiences.write", "management.resources.read", "management.resources.write", "management.groups.read", "management.groups.write", "management.grants.read", "management.grants.write"}}, nil
 }
 
@@ -182,6 +185,28 @@ func TestPublicEndpointsAndTokenExchange(t *testing.T) {
 	}
 }
 
+func TestSwaggerUIIsOptionalAndServesTheEmbeddedContract(t *testing.T) {
+	without := newTestServer(t, &fakeBackend{}, Options{})
+	w := perform(without, http.MethodGet, "/", "", "")
+	if w.Code != http.StatusNotFound || strings.Contains(w.Body.String(), "SwaggerUIBundle") {
+		t.Fatalf("Swagger UI should be disabled by default in transport options: %d %s", w.Code, w.Body.String())
+	}
+
+	with := newTestServer(t, &fakeBackend{}, Options{SwaggerUI: true, OpenAPISpec: []byte("openapi: 3.1.0\ninfo:\n  title: test\n")})
+	w = perform(with, http.MethodGet, "/", "", "")
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "SwaggerUIBundle") || w.Header().Get("Content-Type") != "text/html; charset=utf-8" {
+		t.Fatalf("Swagger UI: %d %s", w.Code, w.Body.String())
+	}
+	w = perform(with, http.MethodGet, "/openapi.yaml", "", "")
+	if w.Code != http.StatusOK || w.Body.String() != "openapi: 3.1.0\ninfo:\n  title: test\n" || w.Header().Get("Content-Type") != "application/yaml; charset=utf-8" {
+		t.Fatalf("OpenAPI document: %d %q", w.Code, w.Body.String())
+	}
+	w = perform(with, http.MethodGet, "/swagger-ui/swagger-ui.css", "", "")
+	if w.Code != http.StatusOK || !strings.Contains(w.Header().Get("Content-Type"), "text/css") {
+		t.Fatalf("embedded Swagger asset: %d %s", w.Code, w.Header().Get("Content-Type"))
+	}
+}
+
 func TestAuthenticationPermissionAndStructuredErrors(t *testing.T) {
 	b := &fakeBackend{}
 	s := newTestServer(t, b, Options{})
@@ -193,7 +218,7 @@ func TestAuthenticationPermissionAndStructuredErrors(t *testing.T) {
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("invalid bearer: %d", w.Code)
 	}
-	w = perform(s, "GET", "/v1/audiences", "", "limited")
+	w = perform(s, "GET", "/v1/manage/audiences", "", "limited")
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("management permission: %d", w.Code)
 	}
@@ -202,9 +227,22 @@ func TestAuthenticationPermissionAndStructuredErrors(t *testing.T) {
 		t.Fatalf("bad error envelope: %s", w.Body.String())
 	}
 	b.fail = ErrNotFound
-	w = perform(s, "GET", "/v1/audiences/missing", "", "good")
+	w = perform(s, "GET", "/v1/manage/audiences/missing", "", "good")
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("not found: %d", w.Code)
+	}
+}
+
+func TestManagementPermissionCanBeConfiguredPerRouteFamily(t *testing.T) {
+	b := &fakeBackend{}
+	s := newTestServer(t, b, Options{ManagementPermissions: map[string]string{"audiences.read": "custom.audiences.read"}})
+	w := perform(s, http.MethodGet, "/v1/manage/audiences", "", "custom")
+	if w.Code != http.StatusOK || b.called != "list-audiences" {
+		t.Fatalf("configured management permission: %d %q %s", w.Code, b.called, w.Body.String())
+	}
+	w = perform(s, http.MethodGet, "/v1/manage/audiences", "", "good")
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("default permission should not satisfy configured permission: %d %s", w.Code, w.Body.String())
 	}
 }
 
@@ -241,10 +279,10 @@ func TestManagementRouteFamilies(t *testing.T) {
 		status             int
 		called             string
 	}{
-		{"POST", "/v1/audiences", `{"id":"docs","token_ttl_seconds":60,"delegation":{"enabled":false,"mode":"disabled"}}`, 201, "create-audience"}, {"GET", "/v1/audiences", "", 200, "list-audiences"}, {"GET", "/v1/audiences/docs", "", 200, "get-audience:docs"}, {"PATCH", "/v1/audiences/docs", `{"display_name":"Docs"}`, 200, "patch-audience:docs"}, {"DELETE", "/v1/audiences/docs", "", 204, "delete-audience:docs"},
-		{"POST", "/v1/resources", `{"type":"document","id":"1","relationships":{"parent":{"type":"folder","id":"f"}}}`, 201, "create-resource"}, {"GET", "/v1/resources/document/1", "", 200, "get-resource:document:1"}, {"PATCH", "/v1/resources/document/1", `{"metadata":{"x":true}}`, 200, "patch-resource:document:1"}, {"DELETE", "/v1/resources/document/1", "", 204, "delete-resource:document:1"}, {"PUT", "/v1/resources/document/1/relationships/parent", `{"target":{"type":"folder","id":"f"}}`, 204, "put-relationship:parent"}, {"DELETE", "/v1/resources/document/1/relationships/parent", "", 204, "delete-relationship:parent"},
-		{"POST", "/v1/groups", `{"id":"eng"}`, 201, "create-group"}, {"GET", "/v1/groups/eng", "", 200, "get-group:eng"}, {"DELETE", "/v1/groups/eng", "", 204, "delete-group:eng"}, {"POST", "/v1/groups/eng/members", `{"member":{"type":"principal","source":"corp","subject":"alice"}}`, 204, "add-member:eng"}, {"DELETE", "/v1/groups/eng/members", `{"member":{"type":"principal","source":"corp","subject":"alice"}}`, 204, "delete-member:eng"},
-		{"POST", "/v1/grants", `{"subject":{"type":"principal","source":"corp","subject":"alice"},"role":"reader","resource":{"type":"document","id":"1"}}`, 201, "create-grant"}, {"GET", "/v1/grants", "", 200, "list-grants"}, {"DELETE", "/v1/grants/g", "", 204, "delete-grant:g"},
+		{"POST", "/v1/manage/audiences", `{"id":"docs","token_ttl_seconds":60,"delegation":{"enabled":false,"mode":"disabled"}}`, 201, "create-audience"}, {"GET", "/v1/manage/audiences", "", 200, "list-audiences"}, {"GET", "/v1/manage/audiences/docs", "", 200, "get-audience:docs"}, {"PATCH", "/v1/manage/audiences/docs", `{"display_name":"Docs"}`, 200, "patch-audience:docs"}, {"DELETE", "/v1/manage/audiences/docs", "", 204, "delete-audience:docs"},
+		{"POST", "/v1/manage/resources", `{"type":"document","id":"1","relationships":{"parent":{"type":"folder","id":"f"}}}`, 201, "create-resource"}, {"GET", "/v1/manage/resources/document/1", "", 200, "get-resource:document:1"}, {"PATCH", "/v1/manage/resources/document/1", `{"metadata":{"x":true}}`, 200, "patch-resource:document:1"}, {"DELETE", "/v1/manage/resources/document/1", "", 204, "delete-resource:document:1"}, {"PUT", "/v1/manage/resources/document/1/relationships/parent", `{"target":{"type":"folder","id":"f"}}`, 204, "put-relationship:parent"}, {"DELETE", "/v1/manage/resources/document/1/relationships/parent", "", 204, "delete-relationship:parent"},
+		{"POST", "/v1/manage/groups", `{"id":"eng"}`, 201, "create-group"}, {"GET", "/v1/manage/groups/eng", "", 200, "get-group:eng"}, {"DELETE", "/v1/manage/groups/eng", "", 204, "delete-group:eng"}, {"POST", "/v1/manage/groups/eng/members", `{"member":{"type":"principal","source":"corp","subject":"alice"}}`, 204, "add-member:eng"}, {"DELETE", "/v1/manage/groups/eng/members", `{"member":{"type":"principal","source":"corp","subject":"alice"}}`, 204, "delete-member:eng"},
+		{"POST", "/v1/manage/grants", `{"subject":{"type":"principal","source":"corp","subject":"alice"},"role":"reader","resource":{"type":"document","id":"1"}}`, 201, "create-grant"}, {"GET", "/v1/manage/grants", "", 200, "list-grants"}, {"DELETE", "/v1/manage/grants/g", "", 204, "delete-grant:g"},
 	}
 	for _, tt := range tests {
 		b.called = ""
@@ -258,15 +296,15 @@ func TestManagementRouteFamilies(t *testing.T) {
 func TestBodyLimitsUnknownFieldsAndInsecureDevelopmentManagement(t *testing.T) {
 	b := &fakeBackend{}
 	s := newTestServer(t, b, Options{MaxBodyBytes: 64, InsecureManagement: true})
-	w := perform(s, "GET", "/v1/audiences", "", "")
+	w := perform(s, "GET", "/v1/manage/audiences", "", "")
 	if w.Code != http.StatusOK || b.identity.Subject != "development-insecure-management" {
 		t.Fatalf("insecure development option: %d %#v", w.Code, b.identity)
 	}
-	w = perform(s, "POST", "/v1/resources", `{"type":"document","id":"1","unknown":true}`, "")
+	w = perform(s, "POST", "/v1/manage/resources", `{"type":"document","id":"1","unknown":true}`, "")
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("unknown field: %d", w.Code)
 	}
-	w = perform(s, "POST", "/v1/resources", `{"type":"document","id":"`+strings.Repeat("x", 100)+`"}`, "")
+	w = perform(s, "POST", "/v1/manage/resources", `{"type":"document","id":"`+strings.Repeat("x", 100)+`"}`, "")
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("oversized body: %d", w.Code)
 	}

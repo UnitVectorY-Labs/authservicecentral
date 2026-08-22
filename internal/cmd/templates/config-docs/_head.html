@@ -1,0 +1,30 @@
+{{define "head"}}
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.PageTitle}} · AuthServiceCentral</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; line-height: 1.5; color: #17202a; background: #f5f7fa; }
+    body { margin: 0; }
+    header { background: #17202a; color: #fff; padding: 1rem 5vw; }
+    header a { color: #fff; text-decoration: none; }
+    nav { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .8rem; }
+    nav a { border: 1px solid #627080; border-radius: .35rem; padding: .3rem .55rem; }
+    nav a[aria-current="page"] { background: #fff; color: #17202a; }
+    main { max-width: 1100px; margin: 0 auto; padding: 2rem 5vw 4rem; }
+    section, .card { background: #fff; border: 1px solid #d8dee6; border-radius: .5rem; padding: 1rem 1.2rem; margin: 1rem 0; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .75rem; }
+    .cards .card { margin: 0; }
+    .number { display: block; font-size: 1.8rem; font-weight: 700; }
+    table { border-collapse: collapse; width: 100%; margin: .75rem 0 1rem; }
+    th, td { border-bottom: 1px solid #e5e9ef; padding: .55rem; text-align: left; vertical-align: top; }
+    th { background: #f5f7fa; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    pre { overflow-x: auto; background: #17202a; color: #f5f7fa; border-radius: .45rem; padding: 1rem; }
+    .muted { color: #5b6775; }
+    .warning { border-left: .3rem solid #d9822b; }
+    ul { margin-top: .25rem; padding-left: 1.25rem; }
+  </style>
+</head>
+{{end}}
