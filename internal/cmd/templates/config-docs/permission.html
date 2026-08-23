@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+{{template "head" .}}
+<body>
+{{template "nav" .}}
+<main id="content">
+  <header class="page-header">
+    <p class="breadcrumb"><a href="permissions.html">Permissions</a> / Permission detail</p>
+    <p class="eyebrow">Permission</p>
+    <h1><code>{{.Permission.Name}}</code></h1>
+    <p class="lede">This is an application authorization capability. The application checks this exact name against a target resource; access is effective only where the permission applies.</p>
+  </header>
+
+  <div class="grid">
+    <section class="question-card">
+      <h2>Where does it apply?</h2>
+      <ul class="chips">{{range .Permission.Resources}}<li><a class="chip" href="{{.Href}}"><code>{{.Name}}</code></a></li>{{end}}</ul>
+      <p class="muted">A grant on another resource type does not provide this permission.</p>
+    </section>
+    <section class="question-card">
+      <h2>Which roles grant it?</h2>
+      <ul class="chips">{{range .Permission.Roles}}<li><a class="chip" href="{{.Href}}"><code>{{.Name}}</code></a></li>{{else}}<li class="empty">No configured role</li>{{end}}</ul>
+      <p class="muted">Applications should still check the permission name, not these role names.</p>
+    </section>
+  </div>
+
+  {{if .Permission.InheritedThrough}}
+  <section class="panel">
+    <h2>Inherited access</h2>
+    <p>This permission can reach a resource through these configured relationships:</p>
+    <div class="data-table"><table><thead><tr><th>Resource type</th><th>Through relationship</th></tr></thead><tbody>
+      {{range .Permission.InheritedThrough}}<tr><td><a href="{{.ResourceHref}}"><code>{{.Resource}}</code></a></td><td><code>{{.Relationship}}</code></td></tr>{{end}}
+    </tbody></table></div>
+  </section>
+  {{end}}
+
+  {{if .Permission.ManagementRoutes}}
+  <section class="panel">
+    <h2>Administration operations</h2>
+    <p>This permission protects the following AuthServiceCentral management operations on the management audience.</p>
+    <div class="data-table"><table><thead><tr><th>Method</th><th>Operation path</th></tr></thead><tbody>
+      {{range .Permission.ManagementRoutes}}<tr><td><span class="method">{{.Method}}</span></td><td><code>{{.Path}}</code></td></tr>{{end}}
+    </tbody></table></div>
+    <p><a href="management-permissions.html">See the complete admin access map</a></p>
+  </section>
+  {{end}}
+
+  <aside class="callout"><p><strong>Implementation note:</strong> the permission name defines the authorization boundary, but its business meaning is owned by the protected application. This guide intentionally does not infer endpoint behavior from the name.</p></aside>
+</main>
+{{template "footer" .}}
+</body>
+</html>

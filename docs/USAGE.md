@@ -18,7 +18,7 @@ The executable accepts these commands:
 | `api` | Alias for `run`. | Yes, through runtime API requests. |
 | `migrate` | Apply embedded migrations, compile the YAML model, and activate its fingerprint/model. | Yes. |
 | `bootstrap` | Create the initial management audience grant for a trusted principal. | Yes. |
-| `config-docs` | Render the validated YAML as safe, browsable static HTML pages. | Yes, by writing files. |
+| `config-docs` | Build a browsable application authorization guide from the validated YAML. | Yes, by writing files. |
 | `validate` | Parse, validate, fingerprint, and compile YAML without changing runtime state. | No. |
 | `model` | Print the deterministic compiled OpenFGA 1.1 JSON model. | No. |
 | `doctor` | Check database, active model, signing backend, and configured remote trust. | No, but it performs network probes. |
@@ -79,17 +79,18 @@ Repeating the same invocation is idempotent. The principal still obtains a norma
 
 ### `config-docs`
 
-Renders the validated deployment YAML as a static HTML site. The command uses the same strict parser and validation rules as the runtime, computes the configuration fingerprint, and writes seven pages to `config-docs/` by default:
+Builds a static authorization guide for the application described by the validated deployment YAML. The command uses the same strict parser and validation rules as the runtime and computes the configuration fingerprint. It writes these entry points to `config-docs/` by default:
 
 ```text
 index.html
-configuration.html
-token-sources.html
 permissions.html
 roles.html
 resources.html
+token-sources.html
 management-permissions.html
 ```
+
+It also writes one detail page for every configured permission and role, using names such as `permission-document.read.html` and `role-editor.html`. The generated guide explains the identity → resource-scoped role → permission-check flow, connects roles, permissions, resources, inheritance, and management operations with links, and includes client-side search on every page. The search index is embedded in the generated HTML and requires no server.
 
 Generate the site into a chosen directory with either spelling of the output flag:
 
@@ -97,7 +98,7 @@ Generate the site into a chosen directory with either spelling of the output fla
 authservicecentral config-docs --config serviceauth.yaml --output-dir ./config-reference
 ```
 
-`--output` is an alias for `--output-dir`. The generated pages are standalone static files and use basic Go templates with HTMX navigation; they do not require a JavaScript framework or a running authservicecentral process. The full configuration page redacts private JWK parameters, private PEM blocks, and secret-like values before rendering. Publish the output as static documentation only after reviewing the redaction policy for the deployment’s own extensions.
+`--output` is an alias for `--output-dir`. The generated pages are standalone, responsive static files with no JavaScript framework and no dependency on a running authservicecentral process. They present the application-facing authorization concepts derived from the configuration; they do not render the raw YAML, key material, or a field-by-field configuration reference. Use [CONFIG.md](CONFIG.md) when authoring the YAML and [API.md](API.md) for HTTP request and response details.
 
 ### `validate`
 
@@ -158,7 +159,7 @@ The service’s repository and runtime reference surfaces are deliberately separ
 - [API.md](API.md) explains request/response behavior and integration patterns.
 - [openapi.yaml](../openapi.yaml) is the machine-readable API contract served at `/openapi.yaml` when the Swagger surface is enabled.
 - [CONFIG.md](CONFIG.md) explains the deployment YAML and does not catalog process flags.
-- `config-docs` renders a redacted, browsable snapshot of one YAML file for publication as static files; it is not a runtime configuration endpoint.
+- `config-docs` builds a browsable, searchable application authorization guide from one YAML file; it does not display the raw configuration and is not a runtime endpoint.
 - `GET /` serves Swagger UI when enabled; it does not expose YAML configuration or private key material.
 
 The API is a standalone executable surface. Requests can be exercised with any HTTP client, including curl, Postman, a browser, or an application test harness.

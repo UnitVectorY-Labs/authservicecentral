@@ -4,27 +4,40 @@
 <body>
 {{template "nav" .}}
 <main id="content">
-  <h1>Resources</h1>
-  <p>Configured resource types, relationship targets, cardinality, and inherited permissions.</p>
-  {{range .Model.Resources}}
-  <section>
-    <h2><code>{{.Name}}</code></h2>
-    <h3>Relationships</h3>
-    {{if .Relationships}}
-    <table>
-      <tr><th>Relationship</th><th>Targets</th><th>Cardinality</th><th>Required</th></tr>
-      {{range .Relationships}}<tr><td><code>{{.Name}}</code></td><td><code>{{join .Targets ", "}}</code></td><td>{{.Cardinality}}</td><td>{{.Required}}</td></tr>{{end}}
-    </table>
-    {{else}}<p class="muted">No relationships configured.</p>{{end}}
-    <h3>Inheritance</h3>
-    {{if .Inheritance}}
-    <table>
-      <tr><th>Through relationship</th><th>Inherited permissions</th></tr>
-      {{range .Inheritance}}<tr><td><code>{{.Relationship}}</code></td><td><code>{{join .Permissions ", "}}</code></td></tr>{{end}}
-    </table>
-    {{else}}<p class="muted">No inherited permissions configured.</p>{{end}}
+  <header class="page-header">
+    <p class="eyebrow">Authorization targets</p>
+    <h1>Resources</h1>
+    <p class="lede">Resources are the things access applies to. This directory shows valid relationships, directly applicable permissions, and where permissions can be inherited from related resources.</p>
+  </header>
+
+  <section class="panel">
+    <h2><code>audience</code></h2>
+    <p>The built-in audience resource represents an application or service that receives a platform token. Audience-scoped roles control which permissions are included for that target application.</p>
   </section>
-  {{else}}<p>No resources configured.</p>{{end}}
+
+  {{range .Model.Resources}}
+  <section id="resource-{{.Name}}" class="panel anchor-section">
+    <p class="eyebrow">Resource type</p>
+    <h2><code>{{.Name}}</code></h2>
+    <h3>Permissions checked on this resource</h3>
+    <ul class="chips">{{range .Permissions}}<li><a class="chip" href="{{.Href}}"><code>{{.Name}}</code></a></li>{{else}}<li class="empty">No directly applicable permissions</li>{{end}}</ul>
+
+    <h3>How it can relate to other resources</h3>
+    {{if .Relationships}}
+    <div class="data-table"><table><thead><tr><th>Relationship</th><th>Can point to</th><th>Values</th><th>Required</th></tr></thead><tbody>
+      {{range .Relationships}}<tr><td><code>{{.Name}}</code></td><td><code>{{join .Targets ", "}}</code></td><td>{{if eq .Cardinality "one"}}One{{else}}Multiple{{end}}</td><td>{{if .Required}}Yes{{else}}No{{end}}</td></tr>{{end}}
+    </tbody></table></div>
+    {{else}}<p class="empty">This resource has no configured relationships.</p>{{end}}
+
+    {{if .Inheritance}}
+    <h3>Permissions inherited through relationships</h3>
+    <div class="data-table"><table><thead><tr><th>Through relationship</th><th>Inherited permission</th></tr></thead><tbody>
+      {{range .Inheritance}}<tr><td><code>{{.Relationship}}</code></td><td><ul class="chips">{{range .Permissions}}<li><a class="chip chip-neutral" href="{{.Href}}"><code>{{.Name}}</code></a></li>{{end}}</ul></td></tr>{{end}}
+    </tbody></table></div>
+    {{end}}
+  </section>
+  {{else}}<p class="empty">No application resource types are configured.</p>{{end}}
 </main>
+{{template "footer" .}}
 </body>
 </html>

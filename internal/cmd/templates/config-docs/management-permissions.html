@@ -4,25 +4,29 @@
 <body>
 {{template "nav" .}}
 <main id="content">
-  <h1>Management permission mappings</h1>
-  <p>Management API routes require the listed permission on the management audience. Configuration status and roles are taken from the YAML schema.</p>
+  <header class="page-header">
+    <p class="eyebrow">Administration</p>
+    <h1>Who can manage access?</h1>
+    <p class="lede">Administration is permission-protected too. These mappings show which permission a platform token needs on the management audience to manage audiences, resources, groups, and grants.</p>
+  </header>
+
   {{range .Model.ManagementPermissions}}
-  <section>
-    <h2><code>{{.Permission}}</code></h2>
-    <p><strong>Configured:</strong> {{.Configured}}</p>
-    {{if .Configured}}<p><strong>Resource types:</strong> <code>{{join .Resources ", "}}</code></p>{{end}}
-    <p><strong>Configured roles:</strong>
-      {{if .Roles}}<code>{{join .Roles ", "}}</code>{{else}}<span class="muted">none</span>{{end}}
-    </p>
-    <h3>API routes</h3>
+  <section class="panel">
+    <p class="eyebrow">Required permission</p>
+    <h2>{{if .Configured}}<a href="permission-{{.Permission}}.html"><code>{{.Permission}}</code></a>{{else}}<code>{{.Permission}}</code>{{end}}</h2>
+    {{if .Configured}}
+      <p>Granted by: {{range .Roles}}<a class="chip" href="role-{{.}}.html"><code>{{.}}</code></a> {{else}}<span class="empty">no configured role</span>{{end}}</p>
+    {{else}}
+      <div class="callout"><p>This route mapping names a permission that is not declared in the application policy, so no configured role can grant it.</p></div>
+    {{end}}
     {{if .Routes}}
-    <table>
-      <tr><th>Method</th><th>Path</th></tr>
-      {{range .Routes}}<tr><td><code>{{.Method}}</code></td><td><code>{{.Path}}</code></td></tr>{{end}}
-    </table>
-    {{else}}<p class="muted">This configured management permission is not attached to a built-in route.</p>{{end}}
+    <div class="data-table"><table><thead><tr><th>Method</th><th>Management operation</th></tr></thead><tbody>
+      {{range .Routes}}<tr><td><span class="method">{{.Method}}</span></td><td><code>{{.Path}}</code></td></tr>{{end}}
+    </tbody></table></div>
+    {{else}}<p class="empty">This configured management permission is not attached to a built-in operation.</p>{{end}}
   </section>
-  {{else}}<p>No management permissions or built-in management routes.</p>{{end}}
+  {{else}}<p class="empty">No management permissions or operations are configured.</p>{{end}}
 </main>
+{{template "footer" .}}
 </body>
 </html>

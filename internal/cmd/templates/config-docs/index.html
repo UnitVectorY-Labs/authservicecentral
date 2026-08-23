@@ -4,27 +4,40 @@
 <body>
 {{template "nav" .}}
 <main id="content">
-  <h1>Configuration overview</h1>
-  <p>Static reference for the validated authorization schema. This directory is safe to publish because key and secret material is redacted.</p>
-  <div class="cards">
-    <div class="card"><span class="number">{{.Model.Counts.TokenSources}}</span> token sources</div>
-    <div class="card"><span class="number">{{.Model.Counts.Permissions}}</span> permissions</div>
-    <div class="card"><span class="number">{{.Model.Counts.Roles}}</span> roles</div>
-    <div class="card"><span class="number">{{.Model.Counts.Resources}}</span> resources</div>
-    <div class="card"><span class="number">{{.Model.Counts.ManagementPermissions}}</span> management permissions</div>
-    <div class="card"><span class="number">{{.Model.Counts.ManagementRoutes}}</span> management routes</div>
+  <header class="page-header">
+    <p class="eyebrow">Start here</p>
+    <h1>Understand who can do what</h1>
+    <p class="lede">This guide describes how people and workloads receive access to this application. Use it to choose a role, understand the permissions that role grants, and see which resources those permissions can act on.</p>
+  </header>
+
+  <section id="how-access-works" class="anchor-section" aria-labelledby="access-heading">
+    <div class="section-heading">
+      <h2 id="access-heading">How access works</h2>
+      <p>Authorization joins identity, a resource-scoped role grant, and an application permission check.</p>
+    </div>
+    <div class="steps">
+      <div class="step"><span class="step-number">1</span><h2>Establish identity</h2><p>A trusted identity source verifies an external token and maps its subject to a platform principal.</p></div>
+      <div class="step"><span class="step-number">2</span><h2>Grant a role</h2><p>A role is assigned to that principal or group for a specific audience or application resource.</p></div>
+      <div class="step"><span class="step-number">3</span><h2>Check permission</h2><p>The protected application checks a permission against the target resource. Roles are translated into permissions by this policy.</p></div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="question-card"><p class="eyebrow">For application users</p><h2>Which role do I need?</h2><p>Start with the <a href="roles.html">role directory</a>. Each role has its own page showing its permissions and the resource types where those permissions take effect.</p></section>
+    <section class="question-card"><p class="eyebrow">For application developers</p><h2>Which permission should I check?</h2><p>Use the <a href="permissions.html">permission directory</a>. Permission pages show applicable resources, granting roles, inherited access, and management usage.</p></section>
+    <section class="question-card"><p class="eyebrow">For resource owners</p><h2>How does access flow?</h2><p>Review <a href="resources.html">resource relationships</a> to see which permissions apply directly and which can be inherited through a parent relationship.</p></section>
+    <section class="question-card"><p class="eyebrow">For administrators</p><h2>Who can manage access?</h2><p>The <a href="management-permissions.html">admin access map</a> connects management operations to the permissions and roles that authorize them.</p></section>
   </div>
-  <section>
-    <h2>Schema identity</h2>
-    <dl>
-      <dt>Schema version</dt><dd>{{.Model.Version}}</dd>
-      <dt>Configuration fingerprint</dt><dd><code>{{.Model.Fingerprint}}</code></dd>
-    </dl>
-  </section>
-  <section class="warning">
-    <h2>Safe publication</h2>
-    <p>The full configuration page preserves configuration shape and public trust metadata, but replaces private JWK parameters, private PEM blocks, and secret-like fields with <code>[REDACTED]</code>.</p>
-  </section>
+
+  <div class="stats" aria-label="Authorization policy summary">
+    <div class="stat"><strong>{{.Model.Counts.Permissions}}</strong> permissions</div>
+    <div class="stat"><strong>{{.Model.Counts.Roles}}</strong> roles</div>
+    <div class="stat"><strong>{{.Model.Counts.Resources}}</strong> resource types</div>
+    <div class="stat"><strong>{{.Model.Counts.TokenSources}}</strong> identity sources</div>
+  </div>
+
+  <aside class="callout"><p><strong>Important:</strong> applications authorize permission names, not role names. A role is a convenient bundle used when granting access; the resource and permission remain the authorization boundary.</p></aside>
 </main>
+{{template "footer" .}}
 </body>
 </html>

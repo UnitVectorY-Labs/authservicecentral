@@ -16,15 +16,14 @@ import (
 	"github.com/UnitVectorY-Labs/authservicecentral/internal/config"
 )
 
-// The page names are deliberately fixed so that a generated directory can be
-// published as-is by any static file server.
+// These are the fixed landing and index pages. Role and permission detail
+// pages are added from the validated configuration.
 var configDocsPageOrder = []string{
 	"index.html",
-	"configuration.html",
-	"token-sources.html",
 	"permissions.html",
 	"roles.html",
 	"resources.html",
+	"token-sources.html",
 	"management-permissions.html",
 }
 
@@ -33,12 +32,11 @@ var configDocsPageSpecs = []struct {
 	title  string
 	active string
 }{
-	{file: "index.html", title: "Configuration overview", active: "overview"},
-	{file: "configuration.html", title: "Full safe configuration", active: "configuration"},
-	{file: "token-sources.html", title: "Token sources", active: "token-sources"},
+	{file: "index.html", title: "Authorization guide", active: "overview"},
 	{file: "permissions.html", title: "Permissions", active: "permissions"},
 	{file: "roles.html", title: "Roles", active: "roles"},
 	{file: "resources.html", title: "Resources", active: "resources"},
+	{file: "token-sources.html", title: "Identity sources", active: "token-sources"},
 	{file: "management-permissions.html", title: "Management permission mappings", active: "management"},
 }
 
@@ -50,10 +48,10 @@ type configDocsOptions struct {
 	outputDir  string
 }
 
-// ConfigDocs renders the validated deployment authorization YAML as a set of
-// static HTML pages. It intentionally loads the schema through config.Load so
-// the command has exactly the same strict parsing and validation behavior as
-// the runtime commands.
+// ConfigDocs builds an application-facing authorization guide from the
+// validated deployment YAML. It intentionally loads the schema through
+// config.Load so the command has exactly the same strict parsing and validation
+// behavior as the runtime commands.
 func ConfigDocs(args []string) error {
 	op, err := parseConfigDocsOptions(args)
 	if err != nil {
@@ -70,7 +68,7 @@ func ConfigDocs(args []string) error {
 	if err := writeConfigDocs(op.outputDir, pages); err != nil {
 		return err
 	}
-	fmt.Printf("wrote %d configuration documentation pages to %s\n", len(configDocsPageOrder), op.outputDir)
+	fmt.Printf("wrote %d application authorization documentation pages to %s\n", len(pages), op.outputDir)
 	return nil
 }
 
@@ -103,15 +101,17 @@ func parseConfigDocsOptions(args []string) (configDocsOptions, error) {
 }
 
 type configDocsView struct {
-	PageTitle string
-	Active    string
-	Model     configDocsModel
+	PageTitle  string
+	Active     string
+	Model      configDocsModel
+	Permission *permissionDoc
+	Role       *roleDoc
+	SearchJSON string
 }
 
 type configDocsModel struct {
 	Version               int
 	Fingerprint           string
-	SafeConfiguration     string
 	Counts                configDocsCounts
 	TokenSources          []tokenSourceDoc
 	Permissions           []permissionDoc
@@ -153,17 +153,42 @@ type propagatedClaimDoc struct {
 }
 
 type permissionDoc struct {
-	Name      string
-	Resources []string
+	Name             string
+	Filename         string
+	Resources        []namedLinkDoc
+	Roles            []namedLinkDoc
+	InheritedThrough []permissionInheritanceDoc
+	ManagementRoutes []managementRouteDoc
 }
 
 type roleDoc struct {
-	Name        string
-	Permissions []string
+	Name           string
+	Filename       string
+	Permissions    []namedLinkDoc
+	ResourceAccess []roleResourceAccessDoc
+}
+
+type namedLinkDoc struct {
+	Name string
+	Href string
+}
+
+type permissionInheritanceDoc struct {
+	Resource     string
+	ResourceHref string
+	Relationship string
+}
+
+type roleResourceAccessDoc struct {
+	Resource     string
+	ResourceHref string
+	Permissions  []namedLinkDoc
 }
 
 type resourceDoc struct {
 	Name          string
+	Href          string
+	Permissions   []namedLinkDoc
 	Relationships []relationshipDoc
 	Inheritance   []inheritanceDoc
 }
@@ -177,7 +202,7 @@ type relationshipDoc struct {
 
 type inheritanceDoc struct {
 	Relationship string
-	Permissions  []string
+	Permissions  []namedLinkDoc
 }
 
 type managementPermissionDoc struct {
@@ -191,6 +216,14 @@ type managementPermissionDoc struct {
 type managementRouteDoc struct {
 	Method string
 	Path   string
+}
+
+type configDocsSearchItem struct {
+	Type     string `json:"type"`
+	Name     string `json:"name"`
+	Summary  string `json:"summary"`
+	Href     string `json:"href"`
+	Keywords string `json:"keywords"`
 }
 
 // These are the management guards attached to the existing API routes. They
@@ -230,11 +263,11 @@ func renderConfigDocs(cfg *config.Config) (map[string][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	safeConfiguration, err := safeConfigurationJSON(cfg)
+	model := buildConfigDocsModel(cfg, fingerprint)
+	searchJSON, err := json.Marshal(buildConfigDocsSearchIndex(model))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("encode configuration documentation search index: %w", err)
 	}
-	model := buildConfigDocsModel(cfg, fingerprint, safeConfiguration)
 
 	templates, err := template.New("config-docs").Funcs(template.FuncMap{
 		"join": strings.Join,
@@ -242,14 +275,32 @@ func renderConfigDocs(cfg *config.Config) (map[string][]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse configuration documentation templates: %w", err)
 	}
-	pages := make(map[string][]byte, len(configDocsPageSpecs))
+	pages := make(map[string][]byte, len(configDocsPageSpecs)+len(model.Permissions)+len(model.Roles))
 	for _, spec := range configDocsPageSpecs {
 		var page bytes.Buffer
-		view := configDocsView{PageTitle: spec.title, Active: spec.active, Model: model}
+		view := configDocsView{PageTitle: spec.title, Active: spec.active, Model: model, SearchJSON: string(searchJSON)}
 		if err := templates.ExecuteTemplate(&page, spec.file, view); err != nil {
 			return nil, fmt.Errorf("render %s: %w", spec.file, err)
 		}
 		pages[spec.file] = page.Bytes()
+	}
+	for i := range model.Permissions {
+		permission := &model.Permissions[i]
+		var page bytes.Buffer
+		view := configDocsView{PageTitle: permission.Name + " permission", Active: "permissions", Model: model, Permission: permission, SearchJSON: string(searchJSON)}
+		if err := templates.ExecuteTemplate(&page, "permission.html", view); err != nil {
+			return nil, fmt.Errorf("render %s: %w", permission.Filename, err)
+		}
+		pages[permission.Filename] = page.Bytes()
+	}
+	for i := range model.Roles {
+		role := &model.Roles[i]
+		var page bytes.Buffer
+		view := configDocsView{PageTitle: role.Name + " role", Active: "roles", Model: model, Role: role, SearchJSON: string(searchJSON)}
+		if err := templates.ExecuteTemplate(&page, "role.html", view); err != nil {
+			return nil, fmt.Errorf("render %s: %w", role.Filename, err)
+		}
+		pages[role.Filename] = page.Bytes()
 	}
 	return pages, nil
 }
@@ -258,11 +309,30 @@ func writeConfigDocs(outputDir string, pages map[string][]byte) error {
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return fmt.Errorf("create configuration documentation directory %s: %w", outputDir, err)
 	}
-	for _, name := range configDocsPageOrder {
-		body, ok := pages[name]
-		if !ok {
-			return fmt.Errorf("configuration documentation page %q was not rendered", name)
+	// Older versions generated a raw, redacted configuration page. Remove that
+	// known generated artifact so regenerating into an existing output directory
+	// cannot accidentally keep publishing it.
+	obsoleteConfigurationPage := filepath.Join(outputDir, "configuration.html")
+	if err := os.Remove(obsoleteConfigurationPage); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove obsolete configuration documentation page %s: %w", obsoleteConfigurationPage, err)
+	}
+	for _, pattern := range []string{"permission-*.html", "role-*.html"} {
+		matches, err := filepath.Glob(filepath.Join(outputDir, pattern))
+		if err != nil {
+			return fmt.Errorf("find stale configuration documentation pages matching %s: %w", pattern, err)
 		}
+		for _, match := range matches {
+			if _, stillGenerated := pages[filepath.Base(match)]; stillGenerated {
+				continue
+			}
+			if err := os.Remove(match); err != nil {
+				return fmt.Errorf("remove stale configuration documentation page %s: %w", match, err)
+			}
+		}
+	}
+	names := sortedConfigKeys(pages)
+	for _, name := range names {
+		body := pages[name]
 		path := filepath.Join(outputDir, name)
 		if err := os.WriteFile(path, body, 0o644); err != nil {
 			return fmt.Errorf("write configuration documentation page %s: %w", path, err)
@@ -271,11 +341,10 @@ func writeConfigDocs(outputDir string, pages map[string][]byte) error {
 	return nil
 }
 
-func buildConfigDocsModel(cfg *config.Config, fingerprint, safeConfiguration string) configDocsModel {
+func buildConfigDocsModel(cfg *config.Config, fingerprint string) configDocsModel {
 	model := configDocsModel{
-		Version:           cfg.Version,
-		Fingerprint:       fingerprint,
-		SafeConfiguration: safeConfiguration,
+		Version:     cfg.Version,
+		Fingerprint: fingerprint,
 	}
 
 	for _, name := range sortedConfigKeys(cfg.TokenSources) {
@@ -307,16 +376,50 @@ func buildConfigDocsModel(cfg *config.Config, fingerprint, safeConfiguration str
 	for _, name := range sortedConfigKeys(cfg.Permissions) {
 		resources := append([]string(nil), cfg.Permissions[name].Resources...)
 		sort.Strings(resources)
-		model.Permissions = append(model.Permissions, permissionDoc{Name: name, Resources: resources})
+		doc := permissionDoc{Name: name, Filename: permissionFilename(name)}
+		for _, resource := range resources {
+			doc.Resources = append(doc.Resources, namedLinkDoc{Name: resource, Href: resourceHref(resource)})
+		}
+		for _, role := range sortedConfigKeys(cfg.Roles) {
+			if containsString(cfg.Roles[role].Permissions, name) {
+				doc.Roles = append(doc.Roles, namedLinkDoc{Name: role, Href: roleFilename(role)})
+			}
+		}
+		for _, resourceName := range sortedConfigKeys(cfg.Resources) {
+			for _, inheritance := range cfg.Resources[resourceName].Inheritance {
+				if containsString(inheritance.Permissions, name) {
+					doc.InheritedThrough = append(doc.InheritedThrough, permissionInheritanceDoc{Resource: resourceName, ResourceHref: resourceHref(resourceName), Relationship: inheritance.Relationship})
+				}
+			}
+		}
+		model.Permissions = append(model.Permissions, doc)
 	}
 	for _, name := range sortedConfigKeys(cfg.Roles) {
 		permissions := append([]string(nil), cfg.Roles[name].Permissions...)
 		sort.Strings(permissions)
-		model.Roles = append(model.Roles, roleDoc{Name: name, Permissions: permissions})
+		doc := roleDoc{Name: name, Filename: roleFilename(name)}
+		for _, permission := range permissions {
+			doc.Permissions = append(doc.Permissions, namedLinkDoc{Name: permission, Href: permissionFilename(permission)})
+		}
+		for _, resourceName := range resourceNamesForRole(cfg, name) {
+			access := roleResourceAccessDoc{Resource: resourceName, ResourceHref: resourceHref(resourceName)}
+			for _, permission := range permissions {
+				if containsString(cfg.Permissions[permission].Resources, resourceName) {
+					access.Permissions = append(access.Permissions, namedLinkDoc{Name: permission, Href: permissionFilename(permission)})
+				}
+			}
+			doc.ResourceAccess = append(doc.ResourceAccess, access)
+		}
+		model.Roles = append(model.Roles, doc)
 	}
 	for _, name := range sortedConfigKeys(cfg.Resources) {
 		resource := cfg.Resources[name]
-		doc := resourceDoc{Name: name}
+		doc := resourceDoc{Name: name, Href: "resources.html#resource-" + name}
+		for _, permissionName := range sortedConfigKeys(cfg.Permissions) {
+			if containsString(cfg.Permissions[permissionName].Resources, name) {
+				doc.Permissions = append(doc.Permissions, namedLinkDoc{Name: permissionName, Href: permissionFilename(permissionName)})
+			}
+		}
 		for _, relationName := range sortedConfigKeys(resource.Relationships) {
 			relation := resource.Relationships[relationName]
 			targets := append([]string(nil), relation.Targets...)
@@ -326,17 +429,28 @@ func buildConfigDocsModel(cfg *config.Config, fingerprint, safeConfiguration str
 		for _, inheritance := range resource.Inheritance {
 			permissions := append([]string(nil), inheritance.Permissions...)
 			sort.Strings(permissions)
-			doc.Inheritance = append(doc.Inheritance, inheritanceDoc{Relationship: inheritance.Relationship, Permissions: permissions})
+			inheritanceDoc := inheritanceDoc{Relationship: inheritance.Relationship}
+			for _, permission := range permissions {
+				inheritanceDoc.Permissions = append(inheritanceDoc.Permissions, namedLinkDoc{Name: permission, Href: permissionFilename(permission)})
+			}
+			doc.Inheritance = append(doc.Inheritance, inheritanceDoc)
 		}
 		sort.SliceStable(doc.Inheritance, func(i, j int) bool {
 			if doc.Inheritance[i].Relationship != doc.Inheritance[j].Relationship {
 				return doc.Inheritance[i].Relationship < doc.Inheritance[j].Relationship
 			}
-			return strings.Join(doc.Inheritance[i].Permissions, "\x00") < strings.Join(doc.Inheritance[j].Permissions, "\x00")
+			return namedLinksKey(doc.Inheritance[i].Permissions) < namedLinksKey(doc.Inheritance[j].Permissions)
 		})
 		model.Resources = append(model.Resources, doc)
 	}
 	model.ManagementPermissions = buildManagementPermissionDocs(cfg)
+	for i := range model.Permissions {
+		for _, management := range model.ManagementPermissions {
+			if management.Permission == model.Permissions[i].Name {
+				model.Permissions[i].ManagementRoutes = append([]managementRouteDoc(nil), management.Routes...)
+			}
+		}
+	}
 	model.Counts = countConfigDocs(model)
 	return model
 }
@@ -354,6 +468,105 @@ func countConfigDocs(model configDocsModel) configDocsCounts {
 		ManagementPermissions: len(model.ManagementPermissions),
 		ManagementRoutes:      routes,
 	}
+}
+
+func permissionFilename(name string) string {
+	return "permission-" + name + ".html"
+}
+
+func roleFilename(name string) string {
+	return "role-" + name + ".html"
+}
+
+func resourceHref(name string) string {
+	if name == "audience" {
+		return "index.html#how-access-works"
+	}
+	return "resources.html#resource-" + name
+}
+
+func namedLinksKey(links []namedLinkDoc) string {
+	names := make([]string, 0, len(links))
+	for _, link := range links {
+		names = append(names, link.Name)
+	}
+	return strings.Join(names, "\x00")
+}
+
+func namedLinksText(links []namedLinkDoc) string {
+	names := make([]string, 0, len(links))
+	for _, link := range links {
+		names = append(names, link.Name)
+	}
+	return strings.Join(names, " ")
+}
+
+func resourceNamesForRole(cfg *config.Config, roleName string) []string {
+	resourceSet := make(map[string]struct{})
+	for _, permissionName := range cfg.Roles[roleName].Permissions {
+		for _, resourceName := range cfg.Permissions[permissionName].Resources {
+			resourceSet[resourceName] = struct{}{}
+		}
+	}
+	return sortedConfigKeys(resourceSet)
+}
+
+func buildConfigDocsSearchIndex(model configDocsModel) []configDocsSearchItem {
+	items := make([]configDocsSearchItem, 0, len(model.Permissions)+len(model.Roles)+len(model.Resources)+len(model.TokenSources))
+	for _, permission := range model.Permissions {
+		resources := namedLinksText(permission.Resources)
+		roles := namedLinksText(permission.Roles)
+		items = append(items, configDocsSearchItem{
+			Type:     "Permission",
+			Name:     permission.Name,
+			Summary:  "Applies to " + humanList(permission.Resources, "resource type", "resource types"),
+			Href:     permission.Filename,
+			Keywords: resources + " " + roles,
+		})
+	}
+	for _, role := range model.Roles {
+		items = append(items, configDocsSearchItem{
+			Type:     "Role",
+			Name:     role.Name,
+			Summary:  humanList(role.Permissions, "permission", "permissions"),
+			Href:     role.Filename,
+			Keywords: namedLinksText(role.Permissions) + " " + roleResourceKeywords(role.ResourceAccess),
+		})
+	}
+	for _, resource := range model.Resources {
+		items = append(items, configDocsSearchItem{
+			Type:     "Resource",
+			Name:     resource.Name,
+			Summary:  humanList(resource.Permissions, "applicable permission", "applicable permissions"),
+			Href:     resource.Href,
+			Keywords: namedLinksText(resource.Permissions),
+		})
+	}
+	for _, source := range model.TokenSources {
+		items = append(items, configDocsSearchItem{
+			Type:     "Identity source",
+			Name:     source.Name,
+			Summary:  "Trusts " + source.Issuer,
+			Href:     "token-sources.html#source-" + source.Name,
+			Keywords: source.Issuer + " " + source.Prefix + " " + source.SubjectClaim,
+		})
+	}
+	return items
+}
+
+func humanList(items []namedLinkDoc, singular, plural string) string {
+	if len(items) == 1 {
+		return "1 " + singular
+	}
+	return fmt.Sprintf("%d %s", len(items), plural)
+}
+
+func roleResourceKeywords(resources []roleResourceAccessDoc) string {
+	values := make([]string, 0, len(resources))
+	for _, resource := range resources {
+		values = append(values, resource.Resource)
+	}
+	return strings.Join(values, " ")
 }
 
 func buildManagementPermissionDocs(cfg *config.Config) []managementPermissionDoc {
@@ -484,57 +697,6 @@ func matcherValue(m config.Matcher) string {
 		return ""
 	}
 	return jsonValue(value)
-}
-
-func safeConfigurationJSON(cfg *config.Config) (string, error) {
-	b, err := json.Marshal(cfg)
-	if err != nil {
-		return "", fmt.Errorf("encode safe configuration: %w", err)
-	}
-	var value any
-	if err := json.Unmarshal(b, &value); err != nil {
-		return "", fmt.Errorf("prepare safe configuration: %w", err)
-	}
-	value = redactConfigurationValue("", value)
-	b, err = json.MarshalIndent(value, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("format safe configuration: %w", err)
-	}
-	return string(b), nil
-}
-
-func redactConfigurationValue(key string, value any) any {
-	if sensitiveConfigurationKey(key) {
-		return "[REDACTED]"
-	}
-	if stringValue, ok := value.(string); ok && containsPrivatePEM(stringValue) {
-		return "[REDACTED]"
-	}
-	switch typed := value.(type) {
-	case map[string]any:
-		for childKey, childValue := range typed {
-			typed[childKey] = redactConfigurationValue(childKey, childValue)
-		}
-	case []any:
-		for i, childValue := range typed {
-			typed[i] = redactConfigurationValue(key, childValue)
-		}
-	}
-	return value
-}
-
-func sensitiveConfigurationKey(key string) bool {
-	normalized := strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(key, "-", "_"), " ", "_"))
-	switch normalized {
-	case "d", "p", "q", "dp", "dq", "qi", "oth", "k", "secret", "password", "token", "access_token", "refresh_token", "client_secret", "private_key", "private_key_pem", "public_key", "public_jwk", "jwks", "credential", "credentials", "api_key", "signing_key":
-		return true
-	}
-	return strings.Contains(normalized, "secret") || strings.Contains(normalized, "password") || strings.Contains(normalized, "private") || strings.HasSuffix(normalized, "_token")
-}
-
-func containsPrivatePEM(value string) bool {
-	upper := strings.ToUpper(value)
-	return strings.Contains(upper, "BEGIN PRIVATE KEY") || strings.Contains(upper, "BEGIN RSA PRIVATE KEY") || strings.Contains(upper, "BEGIN EC PRIVATE KEY")
 }
 
 func jsonValue(value any) string {

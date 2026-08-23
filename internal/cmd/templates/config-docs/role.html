@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+{{template "head" .}}
+<body>
+{{template "nav" .}}
+<main id="content">
+  <header class="page-header">
+    <p class="breadcrumb"><a href="roles.html">Roles</a> / Role detail</p>
+    <p class="eyebrow">Role</p>
+    <h1><code>{{.Role.Name}}</code></h1>
+    <p class="lede">Granting this role gives its permissions on the specific resource named by the grant. The same role can produce different effective access on different resource types.</p>
+  </header>
+
+  <section class="panel">
+    <h2>Permissions in this role</h2>
+    <ul class="chips">{{range .Role.Permissions}}<li><a class="chip" href="{{.Href}}"><code>{{.Name}}</code></a></li>{{end}}</ul>
+  </section>
+
+  <section aria-labelledby="effective-access-heading">
+    <div class="section-heading">
+      <h2 id="effective-access-heading">Effective access by resource type</h2>
+      <p>Only permissions applicable to the grant’s target resource become effective.</p>
+    </div>
+    <div class="item-list">
+      {{range .Role.ResourceAccess}}
+      <section class="panel">
+        <h2><a href="{{.ResourceHref}}"><code>{{.Resource}}</code></a></h2>
+        <ul class="chips">{{range .Permissions}}<li><a class="chip chip-neutral" href="{{.Href}}"><code>{{.Name}}</code></a></li>{{end}}</ul>
+      </section>
+      {{end}}
+    </div>
+  </section>
+
+  <aside class="callout"><p><strong>Use this role when:</strong> every listed effective permission is appropriate for the intended resource. If the bundle is too broad, choose a narrower configured role rather than relying on the application to ignore extra access.</p></aside>
+</main>
+{{template "footer" .}}
+</body>
+</html>

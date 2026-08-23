@@ -4,14 +4,21 @@
 <body>
 {{template "nav" .}}
 <main id="content">
-  <h1>Permissions</h1>
-  <p>Permissions are the application authorization contract. Each permission is applicable to the listed resource types.</p>
-  <section>
-    <table>
-      <tr><th>Permission</th><th>Applicable resource types</th></tr>
-      {{range .Model.Permissions}}<tr><td><code>{{.Name}}</code></td><td><code>{{join .Resources ", "}}</code></td></tr>{{else}}<tr><td colspan="2">No permissions configured.</td></tr>{{end}}
-    </table>
-  </section>
+  <header class="page-header">
+    <p class="eyebrow">Application contract</p>
+    <h1>Permissions</h1>
+    <p class="lede">Permissions are the actions the protected application checks. Choose a permission to see where it applies, which roles grant it, and whether access can flow through a resource relationship.</p>
+  </header>
+  <div class="item-list">
+    {{range .Model.Permissions}}
+    <a class="item-card" href="{{.Filename}}">
+      <code>{{.Name}}</code>
+      <span class="item-meta">{{len .Resources}} resource {{if eq (len .Resources) 1}}type{{else}}types{{end}} · {{len .Roles}} granting {{if eq (len .Roles) 1}}role{{else}}roles{{end}}</span>
+      <span class="arrow" aria-hidden="true">→</span>
+    </a>
+    {{else}}<p class="empty">No permissions are configured.</p>{{end}}
+  </div>
 </main>
+{{template "footer" .}}
 </body>
 </html>

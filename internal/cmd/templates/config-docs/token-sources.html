@@ -4,34 +4,37 @@
 <body>
 {{template "nav" .}}
 <main id="content">
-  <h1>Token sources</h1>
-  <p>Trusted external JWT issuers, key selection, identity mapping, validation rules, and explicitly propagated claims.</p>
+  <header class="page-header">
+    <p class="eyebrow">Identity</p>
+    <h1>Who can sign in?</h1>
+    <p class="lede">These trusted sources can establish an external person or workload as a platform principal. Validation rules must pass before any role or permission is considered.</p>
+  </header>
+
   {{range .Model.TokenSources}}
-  <section>
+  <section id="source-{{.Name}}" class="panel anchor-section">
+    <p class="eyebrow">Identity source</p>
     <h2><code>{{.Name}}</code></h2>
-    <table>
-      <tr><th>Issuer</th><td><code>{{.Issuer}}</code></td></tr>
-      <tr><th>Key mode</th><td>{{.KeyMode}}<br><span class="muted">{{.KeyDetails}}</span></td></tr>
-      <tr><th>Algorithms</th><td><code>{{join .Algorithms ", "}}</code></td></tr>
-      <tr><th>Subject claim</th><td><code>{{.SubjectClaim}}</code></td></tr>
-      <tr><th>Principal prefix</th><td><code>{{.Prefix}}</code></td></tr>
-    </table>
-    <h3>Validation</h3>
+    <dl class="definition-grid">
+      <dt>Trusted issuer</dt><dd><code>{{.Issuer}}</code></dd>
+      <dt>Resulting principal</dt><dd><code>{{.Prefix}}:&lt;{{.SubjectClaim}}&gt;</code><br><span class="muted">The <code>{{.SubjectClaim}}</code> claim becomes the identity after the <code>{{.Prefix}}</code> namespace.</span></dd>
+      <dt>Signature trust</dt><dd>{{.KeyMode}} · {{.KeyDetails}}</dd>
+      <dt>Accepted algorithms</dt><dd><code>{{join .Algorithms ", "}}</code></dd>
+    </dl>
+    <h3>Token requirements</h3>
     {{if .Validation}}
-    <table>
-      <tr><th>Scope</th><th>Operation</th><th>Value</th></tr>
-      {{range .Validation}}<tr><td>{{.Scope}}</td><td><code>{{.Operation}}</code></td><td><code>{{.Value}}</code></td></tr>{{end}}
-    </table>
-    {{else}}<p class="muted">No additional validation rules.</p>{{end}}
-    <h3>Propagated claims</h3>
+    <div class="data-table"><table><thead><tr><th>Token value</th><th>Must satisfy</th><th>Configured value</th></tr></thead><tbody>
+      {{range .Validation}}<tr><td>{{.Scope}}</td><td>{{.Operation}}</td><td><code>{{.Value}}</code></td></tr>{{end}}
+    </tbody></table></div>
+    {{else}}<p class="empty">No validation rules beyond issuer, signature, algorithm, and subject are configured.</p>{{end}}
+    <h3>Claims carried into the platform token</h3>
     {{if .PropagatedClaims}}
-    <table>
-      <tr><th>Output claim</th><th>Source claim</th></tr>
+    <div class="data-table"><table><thead><tr><th>Platform claim</th><th>External claim</th></tr></thead><tbody>
       {{range .PropagatedClaims}}<tr><td><code>{{.Claim}}</code></td><td><code>{{.From}}</code></td></tr>{{end}}
-    </table>
-    {{else}}<p class="muted">No external claims are propagated.</p>{{end}}
+    </tbody></table></div>
+    {{else}}<p class="empty">No additional external claims are propagated.</p>{{end}}
   </section>
-  {{else}}<p>No token sources configured.</p>{{end}}
+  {{else}}<p class="empty">No external identity sources are configured.</p>{{end}}
 </main>
+{{template "footer" .}}
 </body>
 </html>

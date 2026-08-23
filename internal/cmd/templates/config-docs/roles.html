@@ -4,15 +4,21 @@
 <body>
 {{template "nav" .}}
 <main id="content">
-  <h1>Roles</h1>
-  <p>Roles group permissions for resource-scoped grants. Applications should check permissions rather than role names.</p>
-  {{range .Model.Roles}}
-  <section>
-    <h2><code>{{.Name}}</code></h2>
-    <p>Granted permissions:</p>
-    <ul>{{range .Permissions}}<li><code>{{.}}</code></li>{{else}}<li>None</li>{{end}}</ul>
-  </section>
-  {{else}}<p>No roles configured.</p>{{end}}
+  <header class="page-header">
+    <p class="eyebrow">Grantable access bundles</p>
+    <h1>Roles</h1>
+    <p class="lede">Roles package permissions for resource-scoped grants. Choose a role to understand the access it provides before assigning it to a person, workload, or group.</p>
+  </header>
+  <div class="item-list">
+    {{range .Model.Roles}}
+    <a class="item-card" href="{{.Filename}}">
+      <code>{{.Name}}</code>
+      <span class="item-meta">{{len .Permissions}} {{if eq (len .Permissions) 1}}permission{{else}}permissions{{end}} across {{len .ResourceAccess}} resource {{if eq (len .ResourceAccess) 1}}type{{else}}types{{end}}</span>
+      <span class="arrow" aria-hidden="true">→</span>
+    </a>
+    {{else}}<p class="empty">No roles are configured.</p>{{end}}
+  </div>
 </main>
+{{template "footer" .}}
 </body>
 </html>

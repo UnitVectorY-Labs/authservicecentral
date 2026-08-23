@@ -1,14 +1,65 @@
 {{define "nav"}}
-<header>
-  <a href="index.html"><strong>AuthServiceCentral configuration</strong></a>
-  <nav hx-boost="true" hx-target="#content" hx-select="#content" hx-push-url="true" aria-label="Configuration documentation">
-    <a href="index.html"{{if eq .Active "overview"}} aria-current="page"{{end}}>Overview</a>
-    <a href="configuration.html"{{if eq .Active "configuration"}} aria-current="page"{{end}}>Full safe configuration</a>
-    <a href="token-sources.html"{{if eq .Active "token-sources"}} aria-current="page"{{end}}>Token sources</a>
-    <a href="permissions.html"{{if eq .Active "permissions"}} aria-current="page"{{end}}>Permissions</a>
-    <a href="roles.html"{{if eq .Active "roles"}} aria-current="page"{{end}}>Roles</a>
-    <a href="resources.html"{{if eq .Active "resources"}} aria-current="page"{{end}}>Resources</a>
-    <a href="management-permissions.html"{{if eq .Active "management"}} aria-current="page"{{end}}>Management permissions</a>
-  </nav>
+<header class="site-header">
+  <div class="header-inner">
+    <div class="topline">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">Authorization guide</span>
+        <span class="brand-subtitle">How identity and access work in this application</span>
+      </a>
+      <div class="search" role="search">
+        <label for="site-search">Search roles, permissions, resources, and identity sources</label>
+        <span class="search-icon" aria-hidden="true">⌕</span>
+        <input id="site-search" type="search" placeholder="Search access…" autocomplete="off" aria-controls="search-results" aria-expanded="false">
+        <ul id="search-results" class="search-results" hidden></ul>
+      </div>
+    </div>
+    <nav class="site-nav" aria-label="Authorization guide">
+      <a href="index.html"{{if eq .Active "overview"}} aria-current="page"{{end}}>Start here</a>
+      <a href="permissions.html"{{if eq .Active "permissions"}} aria-current="page"{{end}}>Permissions</a>
+      <a href="roles.html"{{if eq .Active "roles"}} aria-current="page"{{end}}>Roles</a>
+      <a href="resources.html"{{if eq .Active "resources"}} aria-current="page"{{end}}>Resources</a>
+      <a href="token-sources.html"{{if eq .Active "token-sources"}} aria-current="page"{{end}}>Identity</a>
+      <a href="management-permissions.html"{{if eq .Active "management"}} aria-current="page"{{end}}>Admin access</a>
+    </nav>
+    <details class="mobile-nav">
+      <summary>Browse this guide</summary>
+      <nav aria-label="Mobile authorization guide">
+        <a href="index.html">Start here</a>
+        <a href="permissions.html">Permissions</a>
+        <a href="roles.html">Roles</a>
+        <a href="resources.html">Resources</a>
+        <a href="token-sources.html">Identity</a>
+        <a href="management-permissions.html">Admin access</a>
+      </nav>
+    </details>
+  </div>
 </header>
+<script>
+(() => {
+  const items = JSON.parse({{.SearchJSON}});
+  const input = document.getElementById("site-search");
+  const results = document.getElementById("search-results");
+  const escapeHTML = (value) => value.replace(/[&<>"']/g, (character) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[character]);
+  const hide = () => { results.hidden = true; input.setAttribute("aria-expanded", "false"); };
+  input.addEventListener("input", () => {
+    const query = input.value.trim().toLocaleLowerCase();
+    if (!query) { results.replaceChildren(); hide(); return; }
+    const matches = items.filter((item) => `${item.type} ${item.name} ${item.summary} ${item.keywords}`.toLocaleLowerCase().includes(query)).slice(0, 10);
+    results.innerHTML = matches.length
+      ? matches.map((item) => `<li><a href="${encodeURI(item.href)}"><span class="result-type">${escapeHTML(item.type)}</span><span class="result-name">${escapeHTML(item.name)}</span><span class="result-summary">${escapeHTML(item.summary)}</span></a></li>`).join("")
+      : '<li class="empty">No matching access concepts</li>';
+    results.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") { input.value = ""; results.replaceChildren(); hide(); }
+    if (event.key === "ArrowDown") { const first = results.querySelector("a"); if (first) { event.preventDefault(); first.focus(); } }
+  });
+  document.addEventListener("click", (event) => { if (!event.target.closest(".search")) hide(); });
+})();
+</script>
+{{end}}
+
+{{define "footer"}}
+<footer>Generated from the application authorization schema · Version {{.Model.Version}} · Fingerprint <code>{{.Model.Fingerprint}}</code></footer>
 {{end}}

@@ -53,7 +53,7 @@ resources:
         required: false
 `
 
-func TestRenderConfigDocsIsDeterministicAndRedactsSecrets(t *testing.T) {
+func TestRenderConfigDocsIsDeterministicAndBuildsNavigableGuide(t *testing.T) {
 	cfg, err := config.Parse([]byte(configDocsTestYAML))
 	if err != nil {
 		t.Fatal(err)
@@ -66,13 +66,20 @@ func TestRenderConfigDocsIsDeterministicAndRedactsSecrets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range configDocsPageOrder {
+	expectedPages := append([]string(nil), configDocsPageOrder...)
+	expectedPages = append(expectedPages,
+		"permission-document.read.html",
+		"permission-management.grants.write.html",
+		"role-administrator.html",
+		"role-reader.html",
+	)
+	for _, name := range expectedPages {
 		if !bytes.Equal(first[name], second[name]) {
 			t.Fatalf("page %s changed between identical renders", name)
 		}
 		body := string(first[name])
-		if !strings.Contains(body, `hx-boost="true"`) {
-			t.Fatalf("page %s has no HTMX navigation", name)
+		if !strings.Contains(body, `id="site-search"`) || !strings.Contains(body, `name="viewport"`) {
+			t.Fatalf("page %s does not include responsive search navigation", name)
 		}
 		for _, secret := range []string{"TOP-SECRET-JWK-MATERIAL", "ANOTHER-SECRET", "THIRD-SECRET"} {
 			if strings.Contains(body, secret) {
@@ -80,12 +87,20 @@ func TestRenderConfigDocsIsDeterministicAndRedactsSecrets(t *testing.T) {
 			}
 		}
 	}
-	configuration := string(first["configuration.html"])
-	if !strings.Contains(configuration, "[REDACTED]") {
-		t.Fatal("safe configuration does not show redaction marker")
+	if _, ok := first["configuration.html"]; ok {
+		t.Fatal("guide includes a raw configuration page")
 	}
-	if strings.Contains(configuration, "public-modulus") {
-		t.Fatal("safe configuration leaked public JWK key material")
+	permission := string(first["permission-document.read.html"])
+	if !strings.Contains(permission, `href="role-reader.html"`) || !strings.Contains(permission, `href="resources.html#resource-document"`) {
+		t.Fatalf("permission detail page does not connect roles and resources:\n%s", permission)
+	}
+	role := string(first["role-reader.html"])
+	if !strings.Contains(role, `href="permission-document.read.html"`) || !strings.Contains(role, "Effective access by resource type") {
+		t.Fatalf("role detail page does not explain effective access:\n%s", role)
+	}
+	index := string(first["index.html"])
+	if !strings.Contains(index, "How access works") || !strings.Contains(index, "applications authorize permission names") {
+		t.Fatalf("overview does not explain the application authorization flow:\n%s", index)
 	}
 	if !strings.Contains(string(first["management-permissions.html"]), "/v1/manage/grants") {
 		t.Fatal("management page does not include the built-in grant routes")
@@ -113,6 +128,10 @@ management:
 	if !strings.Contains(body, "platform.grants.write") || !strings.Contains(body, "/v1/manage/grants") {
 		t.Fatalf("configured management mapping missing from output:\n%s", body)
 	}
+	permissionBody := string(pages["permission-platform.grants.write.html"])
+	if !strings.Contains(permissionBody, "/v1/manage/grants") {
+		t.Fatalf("permission detail does not explain its management usage:\n%s", permissionBody)
+	}
 }
 
 func TestConfigDocsMalformedInputDoesNotCreateOutput(t *testing.T) {
@@ -137,10 +156,35 @@ func TestConfigDocsWritesAllPagesToOutputDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	outputDir := filepath.Join(directory, "site")
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	obsoletePage := filepath.Join(outputDir, "configuration.html")
+	if err := os.WriteFile(obsoletePage, []byte("stale raw configuration"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	staleRolePage := filepath.Join(outputDir, "role-deleted.html")
+	if err := os.WriteFile(staleRolePage, []byte("stale role"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	if err := ConfigDocs([]string{"--config", configPath, "--output", outputDir}); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range configDocsPageOrder {
+	if _, err := os.Stat(obsoletePage); !os.IsNotExist(err) {
+		t.Fatalf("obsolete raw configuration page remains after regeneration: %v", err)
+	}
+	if _, err := os.Stat(staleRolePage); !os.IsNotExist(err) {
+		t.Fatalf("stale role page remains after regeneration: %v", err)
+	}
+	cfg, err := config.Parse([]byte(configDocsTestYAML))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered, err := renderConfigDocs(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name := range rendered {
 		path := filepath.Join(outputDir, name)
 		body, err := os.ReadFile(path)
 		if err != nil {
