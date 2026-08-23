@@ -114,6 +114,27 @@ paths:
                 $ref: "#/components/schemas/OAuthMetadata"
         default:
           $ref: "#/components/responses/Error"
+  /.well-known/openid-configuration:
+    get:
+      tags: [Discovery]
+      operationId: getOpenIDConfiguration
+      summary: Return OpenID discovery-compatible issuer metadata
+      description: |
+        Returns the issuer, token-exchange endpoint, JWKS URI, and supported
+        grant metadata for clients that use the standard OpenID discovery path
+        to locate verification keys. This service does not implement
+        interactive OpenID Connect authorization or issue ID tokens.
+      responses:
+        "4XX":
+          $ref: "#/components/responses/Error"
+        "200":
+          description: OpenID discovery-compatible metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthMetadata"
+        default:
+          $ref: "#/components/responses/Error"
   /.well-known/jwks.json:
     get:
       tags: [Discovery]
@@ -727,6 +748,7 @@ components:
     OAuthMetadata:
       type: object
       additionalProperties: false
+      description: Issuer metadata returned by both OAuth authorization-server discovery and the OpenID discovery-compatible path.
       required: [issuer, token_endpoint, jwks_uri, grant_types_supported, subject_types_supported]
       properties:
         issuer:

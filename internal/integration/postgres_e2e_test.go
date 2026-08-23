@@ -88,11 +88,13 @@ func TestPostgresEndToEnd(t *testing.T) {
 				t.Fatalf("%s: %d %s", path, status, body)
 			}
 		}
-		status, body := request(t, client, http.MethodGet, server.URL+"/.well-known/oauth-authorization-server", "", nil, "")
-		if status != 200 || !strings.Contains(body, `"issuer":"https://platform.test"`) || !strings.Contains(body, token.GrantTypeTokenExchange) {
-			t.Fatalf("metadata: %d %s", status, body)
+		for _, path := range []string{"/.well-known/oauth-authorization-server", "/.well-known/openid-configuration"} {
+			status, body := request(t, client, http.MethodGet, server.URL+path, "", nil, "")
+			if status != 200 || !strings.Contains(body, `"issuer":"https://platform.test"`) || !strings.Contains(body, token.GrantTypeTokenExchange) {
+				t.Fatalf("metadata %s: %d %s", path, status, body)
+			}
 		}
-		status, body = request(t, client, http.MethodGet, server.URL+"/.well-known/jwks.json", "", nil, "")
+		status, body := request(t, client, http.MethodGet, server.URL+"/.well-known/jwks.json", "", nil, "")
 		if status != 200 || !strings.Contains(body, `"kty":"RSA"`) || !strings.Contains(body, `"kid":`) {
 			t.Fatalf("JWKS: %d %s", status, body)
 		}

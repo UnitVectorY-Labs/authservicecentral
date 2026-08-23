@@ -86,7 +86,7 @@ Moving a resource changes relationship tuples and therefore changes future autho
 
 The API separates application authorization from control-plane mutations:
 
-- discovery and token exchange are exposed at the standard well-known and OAuth paths;
+- OAuth metadata and OpenID discovery-compatible metadata are exposed at the standard well-known paths, alongside token exchange at the OAuth path;
 - `/v1/check` is the authenticated application authorization surface; and
 - all audience, resource, relationship, group, membership, and grant mutations are below `/v1/manage/`.
 
