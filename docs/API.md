@@ -1,6 +1,6 @@
 # API
 
-The HTTP API exposes OAuth discovery and token exchange, operational probes, batched authorization checks, and authenticated management operations. The machine-readable contract is [openapi.yaml](../openapi.yaml); when the Swagger surface is enabled, the same contract is served at `/openapi.yaml` and browsable at `/`.
+The HTTP API exposes OAuth and OpenID discovery, token exchange, operational probes, batched authorization checks, and authenticated management operations. The machine-readable contract is [openapi.yaml](../openapi.yaml); when the Swagger surface is enabled, the same contract is served at `/openapi.yaml` and browsable at `/`.
 
 Examples below assume:
 
@@ -46,6 +46,7 @@ Pass tokens as `Authorization: Bearer <token>`. The development-only `--insecure
 | Method and path | Authentication | Description |
 |---|---|---|
 | `GET /.well-known/oauth-authorization-server` | None | OAuth issuer, token endpoint, JWKS URI, and supported grant metadata. |
+| `GET /.well-known/openid-configuration` | None | OpenID discovery-compatible issuer, token endpoint, JWKS URI, and supported grant metadata. This service does not provide interactive OpenID Connect authorization or ID tokens. |
 | `GET /.well-known/jwks.json` | None | Active and configured inactive public verification keys. |
 | `POST /oauth2/token` | Trusted JWT in form | RFC 8693 token exchange. |
 | `GET /health/live` | None | Process liveness; returns `{"status":"ok"}`. |

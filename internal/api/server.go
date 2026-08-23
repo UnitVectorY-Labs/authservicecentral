@@ -83,6 +83,7 @@ func New(backend Backend, authenticator Authenticator, options Options) (*Server
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /.well-known/oauth-authorization-server", s.metadata)
+	mux.HandleFunc("GET /.well-known/openid-configuration", s.metadata)
 	mux.HandleFunc("GET /.well-known/jwks.json", s.jwks)
 	mux.HandleFunc("POST /oauth2/token", s.exchange)
 	mux.HandleFunc("GET /health/live", s.live)

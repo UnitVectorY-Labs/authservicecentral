@@ -160,7 +160,7 @@ func perform(s http.Handler, method, path, body, token string) *httptest.Respons
 func TestPublicEndpointsAndTokenExchange(t *testing.T) {
 	b := &fakeBackend{}
 	s := newTestServer(t, b, Options{})
-	for _, path := range []string{"/.well-known/oauth-authorization-server", "/.well-known/jwks.json", "/health/live", "/health/ready"} {
+	for _, path := range []string{"/.well-known/oauth-authorization-server", "/.well-known/openid-configuration", "/.well-known/jwks.json", "/health/live", "/health/ready"} {
 		w := perform(s, "GET", path, "", "")
 		if w.Code != http.StatusOK {
 			t.Errorf("%s: %d %s", path, w.Code, w.Body.String())
@@ -185,6 +185,19 @@ func TestPublicEndpointsAndTokenExchange(t *testing.T) {
 	w = perform(s, "GET", "/health/ready", "", "")
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("readiness: %d", w.Code)
+	}
+}
+
+func TestOpenIDConfigurationMatchesOAuthMetadata(t *testing.T) {
+	b := &fakeBackend{}
+	s := newTestServer(t, b, Options{})
+	oauth := perform(s, http.MethodGet, "/.well-known/oauth-authorization-server", "", "")
+	openid := perform(s, http.MethodGet, "/.well-known/openid-configuration", "", "")
+	if openid.Code != http.StatusOK || openid.Body.String() != oauth.Body.String() {
+		t.Fatalf("OpenID configuration should use the issuer metadata document: oauth=%d openid=%d oauth-body=%s openid-body=%s", oauth.Code, openid.Code, oauth.Body.String(), openid.Body.String())
+	}
+	if b.called != "metadata" {
+		t.Fatalf("OpenID configuration did not use metadata backend: %q", b.called)
 	}
 }
 
