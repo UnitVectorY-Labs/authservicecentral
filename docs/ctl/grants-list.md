@@ -1,3 +1,11 @@
+---
+layout: default
+title: grants list
+parent: Command-line client
+nav_order: 20
+permalink: /ctl/grants-list
+---
+
 # `authservicecentral ctl grants list`
 
 List resource-scoped role grants through `GET /v1/manage/grants`. The management token requires the configured `grants.read` permission, conventionally `management.grants.read`.

@@ -1,3 +1,11 @@
+---
+layout: default
+title: resources get
+parent: Command-line client
+nav_order: 9
+permalink: /ctl/resources-get
+---
+
 # `authservicecentral ctl resources get`
 
 Get a configured resource, its metadata, and relationships through `GET /v1/manage/resources/{type}/{id}`. The management token requires the configured `resources.read` permission, conventionally `management.resources.read`.

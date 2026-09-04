@@ -1,3 +1,11 @@
+---
+layout: default
+title: audiences create
+parent: Command-line client
+nav_order: 3
+permalink: /ctl/audiences-create
+---
+
 # `authservicecentral ctl audiences create`
 
 Create or replace a runtime audience through `POST /v1/manage/audiences`. The management token requires the configured `audiences.write` permission, conventionally `management.audiences.write`.

@@ -1,3 +1,11 @@
+---
+layout: default
+title: audiences delete
+parent: Command-line client
+nav_order: 7
+permalink: /ctl/audiences-delete
+---
+
 # `authservicecentral ctl audiences delete`
 
 Idempotently delete an audience and its associated authorization state through `DELETE /v1/manage/audiences/{id}`. The management token requires the configured `audiences.write` permission, conventionally `management.audiences.write`.

@@ -1,3 +1,11 @@
+---
+layout: default
+title: check
+parent: Command-line client
+nav_order: 2
+permalink: /ctl/check
+---
+
 # `authservicecentral ctl check`
 
 Evaluate resource permissions through `POST /v1/check`. The platform token supplies the subject, audience, and optional actor; identity cannot be supplied as command flags.

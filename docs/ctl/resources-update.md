@@ -1,3 +1,11 @@
+---
+layout: default
+title: resources update
+parent: Command-line client
+nav_order: 10
+permalink: /ctl/resources-update
+---
+
 # `authservicecentral ctl resources update`
 
 Replace all metadata for a configured resource through `PATCH /v1/manage/resources/{type}/{id}`. This command does not modify relationships. The management token requires the configured `resources.write` permission, conventionally `management.resources.write`.

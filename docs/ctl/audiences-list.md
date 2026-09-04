@@ -1,3 +1,11 @@
+---
+layout: default
+title: audiences list
+parent: Command-line client
+nav_order: 4
+permalink: /ctl/audiences-list
+---
+
 # `authservicecentral ctl audiences list`
 
 List runtime audiences through `GET /v1/manage/audiences`. The management token requires the configured `audiences.read` permission, conventionally `management.audiences.read`.

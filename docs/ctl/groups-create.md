@@ -1,3 +1,11 @@
+---
+layout: default
+title: groups create
+parent: Command-line client
+nav_order: 14
+permalink: /ctl/groups-create
+---
+
 # `authservicecentral ctl groups create`
 
 Create a runtime group through `POST /v1/manage/groups`. The management token requires the configured `groups.write` permission, conventionally `management.groups.write`.

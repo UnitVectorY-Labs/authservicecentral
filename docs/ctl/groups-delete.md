@@ -1,3 +1,11 @@
+---
+layout: default
+title: groups delete
+parent: Command-line client
+nav_order: 16
+permalink: /ctl/groups-delete
+---
+
 # `authservicecentral ctl groups delete`
 
 Idempotently delete a group and its associated authorization state through `DELETE /v1/manage/groups/{id}`. The management token requires the configured `groups.write` permission, conventionally `management.groups.write`.

@@ -1,3 +1,11 @@
+---
+layout: default
+title: groups remove-member
+parent: Command-line client
+nav_order: 18
+permalink: /ctl/groups-remove-member
+---
+
 # `authservicecentral ctl groups remove-member`
 
 Remove an exact principal or nested group membership through `DELETE /v1/manage/groups/{id}/members`. The management token requires the configured `groups.write` permission, conventionally `management.groups.write`.

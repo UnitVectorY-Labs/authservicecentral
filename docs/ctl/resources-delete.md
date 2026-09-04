@@ -1,3 +1,11 @@
+---
+layout: default
+title: resources delete
+parent: Command-line client
+nav_order: 11
+permalink: /ctl/resources-delete
+---
+
 # `authservicecentral ctl resources delete`
 
 Idempotently delete a resource, its catalog state, associated grants, and relationships through `DELETE /v1/manage/resources/{type}/{id}`. The management token requires the configured `resources.write` permission, conventionally `management.resources.write`.

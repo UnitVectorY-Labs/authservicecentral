@@ -1,3 +1,11 @@
+---
+layout: default
+title: grants delete
+parent: Command-line client
+nav_order: 21
+permalink: /ctl/grants-delete
+---
+
 # `authservicecentral ctl grants delete`
 
 Idempotently delete a resource-scoped role grant through `DELETE /v1/manage/grants/{id}`. The management token requires the configured `grants.write` permission, conventionally `management.grants.write`.

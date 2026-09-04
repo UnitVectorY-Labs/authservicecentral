@@ -1,3 +1,11 @@
+---
+layout: default
+title: relationships set
+parent: Command-line client
+nav_order: 12
+permalink: /ctl/relationships-set
+---
+
 # `authservicecentral ctl relationships set`
 
 Replace all targets of one resource relationship through `PUT /v1/manage/resources/{type}/{id}/relationships/{relation}`. The management token requires the configured `resources.write` permission, conventionally `management.resources.write`.

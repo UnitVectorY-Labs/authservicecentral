@@ -1,3 +1,11 @@
+---
+layout: default
+title: relationships remove
+parent: Command-line client
+nav_order: 13
+permalink: /ctl/relationships-remove
+---
+
 # `authservicecentral ctl relationships remove`
 
 Remove selected targets or all targets of one relationship through `DELETE /v1/manage/resources/{type}/{id}/relationships/{relation}`. The management token requires the configured `resources.write` permission, conventionally `management.resources.write`.

@@ -1,3 +1,11 @@
+---
+layout: default
+title: groups add-member
+parent: Command-line client
+nav_order: 17
+permalink: /ctl/groups-add-member
+---
+
 # `authservicecentral ctl groups add-member`
 
 Add a principal or nested group to a runtime group through `POST /v1/manage/groups/{id}/members`. The management token requires the configured `groups.write` permission, conventionally `management.groups.write`.

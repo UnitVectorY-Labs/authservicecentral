@@ -1,3 +1,11 @@
+---
+layout: default
+title: audiences update
+parent: Command-line client
+nav_order: 6
+permalink: /ctl/audiences-update
+---
+
 # `authservicecentral ctl audiences update`
 
 Partially update a runtime audience through `PATCH /v1/manage/audiences/{id}`. The management token requires the configured `audiences.write` permission, conventionally `management.audiences.write`.

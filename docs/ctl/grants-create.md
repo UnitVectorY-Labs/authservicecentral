@@ -1,3 +1,11 @@
+---
+layout: default
+title: grants create
+parent: Command-line client
+nav_order: 19
+permalink: /ctl/grants-create
+---
+
 # `authservicecentral ctl grants create`
 
 Create a resource-scoped role grant for a principal or group through `POST /v1/manage/grants`. The management token requires the configured `grants.write` permission, conventionally `management.grants.write`.

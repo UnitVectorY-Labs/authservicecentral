@@ -1,3 +1,11 @@
+---
+layout: default
+title: resources create
+parent: Command-line client
+nav_order: 8
+permalink: /ctl/resources-create
+---
+
 # `authservicecentral ctl resources create`
 
 Create a configured resource, optional metadata, and optional initial relationships through `POST /v1/manage/resources`. The management token requires the configured `resources.write` permission, conventionally `management.resources.write`.

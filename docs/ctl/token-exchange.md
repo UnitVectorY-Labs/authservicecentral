@@ -1,3 +1,11 @@
+---
+layout: default
+title: token exchange
+parent: Command-line client
+nav_order: 1
+permalink: /ctl/token-exchange
+---
+
 # `authservicecentral ctl token exchange`
 
 Exchange a JWT from a configured trusted token source for a short-lived, audience-scoped platform token through `POST /oauth2/token`.

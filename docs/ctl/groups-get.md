@@ -1,3 +1,11 @@
+---
+layout: default
+title: groups get
+parent: Command-line client
+nav_order: 15
+permalink: /ctl/groups-get
+---
+
 # `authservicecentral ctl groups get`
 
 Get one runtime group through `GET /v1/manage/groups/{id}`. The management token requires the configured `groups.read` permission, conventionally `management.groups.read`.

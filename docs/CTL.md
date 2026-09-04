@@ -1,3 +1,11 @@
+---
+layout: default
+title: Command-line client
+nav_order: 3
+has_children: true
+permalink: /ctl
+---
+
 # `authservicecentral ctl`
 
 `authservicecentral ctl` controls a running authservicecentral deployment through its public HTTP API. It is bundled into the service executable for convenient installation and synchronized releases, but behaves as a remote client: it never reads deployment YAML, connects directly to PostgreSQL, calls internal service methods, or accesses embedded OpenFGA.
