@@ -7,7 +7,7 @@ permalink: /usage
 
 # Usage
 
-`authservicecentral` is a single executable. It validates a deployment YAML file, manages the PostgreSQL/OpenFGA lifecycle, exchanges trusted JWTs, and serves the HTTP API.
+`authservicecentral` is a single executable. It validates a deployment YAML file, manages the PostgreSQL/OpenFGA lifecycle, exchanges trusted JWTs, serves the HTTP API, and provides a remote HTTP client below the `ctl` subcommand. The client is documented separately in [CTL.md](CTL.md).
 
 For the HTTP contract, see [API.md](API.md) and the repository’s machine-readable [openapi.yaml](../openapi.yaml). For the YAML document itself, see [CONFIG.md](CONFIG.md). Architectural context is in [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -29,7 +29,10 @@ The executable accepts these commands:
 | `validate` | Parse, validate, fingerprint, and compile YAML without changing runtime state. | No. |
 | `model` | Print the deterministic compiled OpenFGA 1.1 JSON model. | No. |
 | `doctor` | Check database, active model, signing backend, and configured remote trust. | No, but it performs network probes. |
+| `ctl` | Call a running deployment through its public HTTP API. | Depends on the selected operation. |
 | `version` | Print the build version. | No. |
+
+`ctl` contains commands that call a running authservicecentral deployment through its public HTTP API. Unlike the local lifecycle commands above, `ctl` never reads deployment YAML, connects to PostgreSQL, or accesses embedded OpenFGA directly. See [CTL.md](CTL.md) for the command tree and client-wide settings.
 
 Use the command-specific flag reference below when composing a deployment command. The executable name can be replaced with `go run .` from a source checkout.
 
@@ -164,6 +167,7 @@ The rate-limit settings must both be zero or both be positive. `--insecure-manag
 The service’s repository and runtime reference surfaces are deliberately separate:
 
 - [API.md](API.md) explains request/response behavior and integration patterns.
+- [CTL.md](CTL.md) specifies the `ctl` HTTP client, common settings, command tree, output, and exit behavior.
 - [openapi.yaml](../openapi.yaml) is the machine-readable API contract served at `/openapi.yaml` when the Swagger surface is enabled.
 - [CONFIG.md](CONFIG.md) explains the deployment YAML and does not catalog process flags.
 - `config-docs` builds a browsable, searchable application authorization guide from one YAML file; it does not display the raw configuration and is not a runtime endpoint.

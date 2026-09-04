@@ -17,6 +17,7 @@ This glossary gives the service-specific meaning of common identity and authoriz
 | Authorization context | Signed platform-token claims describing the subject, optional actor, audience, delegation mode, and permission materialization used by later checks. |
 | Bootstrap | The explicit CLI operation that creates the initial management audience grant after the model has been migrated and activated. |
 | Claim propagation | Allowlisted copying of selected external JWT claims into a platform JWT. It never grants authority and cannot replace reserved platform claims. |
+| `ctl` client | The command tree below `authservicecentral ctl` that calls a running deployment exclusively through its public HTTP API. |
 | Delegation | An on-behalf-of exchange in which a subject token and actor token are combined according to the target audience’s configured mode. |
 | Fine-grained authorization | Permission evaluation for a particular resource instance and its current relationship graph, rather than only for an application or audience. |
 | Grant | A runtime, resource-scoped assignment of a YAML role to a principal or group. |
@@ -36,4 +37,3 @@ This glossary gives the service-specific meaning of common identity and authoriz
 | Token source | A configured external issuer, key source, algorithm policy, identity mapping, claim validation, and optional claim propagation rule set. |
 | Trust plane | The part of the system that verifies external issuer/key material and turns a valid external subject into a normalized principal. |
 | Userset | OpenFGA terminology for a set represented by a relation, commonly used here for group membership and relationship traversal. |
-

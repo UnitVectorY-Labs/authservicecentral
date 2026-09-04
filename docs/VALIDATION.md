@@ -27,6 +27,8 @@ authservicecentral config-docs --config examples/serviceauth.yaml --output-dir .
 
 Expected evidence is a 64-character configuration fingerprint from `validate` and an OpenFGA 1.1 JSON model from `model`, including intrinsic principal/group/audience behavior, role relations, permission relations, and configured resource relationships.
 
+The `ctl` unit suite must cover command routing and help, required and mutually exclusive flags, flag/environment/default precedence, URL and duration validation, bearer-token redaction, JSON and file inputs, request serialization, table and JSON output, API error rendering, confirmation behavior, and exit statuses. Each leaf command documented in [CTL.md](CTL.md) must have a request-shape test tied to its HTTP method and path.
+
 The configuration documentation command should report seven generated pages. Review `configuration.html` to confirm JWK/key material and private PEM material are redacted while non-sensitive trust metadata such as issuer, key mode, and JWKS URL remains visible.
 
 ## PostgreSQL-backed integration
@@ -44,6 +46,7 @@ The suite creates and removes an isolated database. It covers:
 - deterministic, idempotent management bootstrap;
 - liveness, readiness, OAuth metadata, JWKS, Swagger gating, and strict HTTP transport;
 - the `/v1/manage/` audience, resource, relationship, group, membership, and grant APIs;
+- the corresponding `ctl` token exchange, check, and management commands through the running HTTP server rather than internal service calls;
 - signed external JWT trust, RFC 8693 exchange, claim propagation, and platform claims;
 - inherited allow/deny decisions, relationship moves, validation errors, deletion cleanup, and implicit resource creation;
 - direct exchange and delegation modes; and

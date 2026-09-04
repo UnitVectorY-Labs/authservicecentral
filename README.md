@@ -6,4 +6,4 @@ Authorization is deployment-configured: YAML declares trusted token sources, per
 
 The service is intentionally batch-first and permission-centric. Applications check capabilities such as `document.read`; they do not duplicate role or hierarchy logic.
 
-See [usage](docs/USAGE.md), [API documentation](docs/API.md), the [OpenAPI specification](openapi.yaml), [configuration](docs/CONFIG.md), [database operations](docs/DATABASE.md), and [validation](docs/VALIDATION.md).
+See [usage](docs/USAGE.md), the [`ctl` command-line client](docs/CTL.md), [API documentation](docs/API.md), the [OpenAPI specification](openapi.yaml), [configuration](docs/CONFIG.md), [database operations](docs/DATABASE.md), and [validation](docs/VALIDATION.md).
