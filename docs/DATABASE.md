@@ -1,3 +1,10 @@
+---
+layout: default
+title: Database
+nav_order: 5
+permalink: /database
+---
+
 # Database
 
 PostgreSQL 18 is the supported persistent store. One database contains two ownership domains: application-owned `platform.*` tables and OpenFGA-owned tables. Application code accesses and migrates OpenFGA data through supported OpenFGA APIs and does not depend on private OpenFGA table details.

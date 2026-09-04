@@ -1,3 +1,10 @@
+---
+layout: default
+title: Usage
+nav_order: 2
+permalink: /usage
+---
+
 # Usage
 
 `authservicecentral` is a single executable. It validates a deployment YAML file, manages the PostgreSQL/OpenFGA lifecycle, exchanges trusted JWTs, and serves the HTTP API.

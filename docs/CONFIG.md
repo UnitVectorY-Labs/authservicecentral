@@ -1,3 +1,10 @@
+---
+layout: default
+title: YAML configuration reference
+nav_order: 4
+permalink: /config
+---
+
 # YAML configuration reference
 
 This document describes the deployment authorization YAML only. Process flags and `SERVICEAUTH_*` environment variables belong in [USAGE.md](USAGE.md). Runtime catalog objects such as audiences, resources, groups, and grants belong in [API.md](API.md).

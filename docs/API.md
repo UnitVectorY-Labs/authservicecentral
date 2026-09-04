@@ -1,3 +1,10 @@
+---
+layout: default
+title: API
+nav_order: 3
+permalink: /api
+---
+
 # API
 
 The HTTP API exposes OAuth and OpenID discovery, token exchange, operational probes, batched authorization checks, and authenticated management operations. The machine-readable contract is [openapi.yaml](../openapi.yaml); when the Swagger surface is enabled, the same contract is served at `/openapi.yaml` and browsable at `/`.

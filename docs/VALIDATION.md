@@ -1,3 +1,10 @@
+---
+layout: default
+title: Validation
+nav_order: 7
+permalink: /validation
+---
+
 # Validation
 
 Validation should prove both the configuration compiler and the running service contract. Use a disposable PostgreSQL 18-compatible environment for integration tests. The environment may be local, Docker-based, supplied by another container runtime, CI-managed, or remote; the test procedure does not depend on one tool.

@@ -1,3 +1,10 @@
+---
+layout: default
+title: Architecture
+nav_order: 6
+permalink: /architecture
+---
+
 # Architecture
 
 authservicecentral is a single-deployment authorization universe. One process owns the trust configuration, token exchange, runtime resource catalog, and permission checks for that deployment. PostgreSQL provides durable catalog and reconciliation state; an embedded OpenFGA engine evaluates the configured authorization model.

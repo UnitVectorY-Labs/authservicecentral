@@ -1,3 +1,10 @@
+---
+layout: default
+title: Glossary
+nav_order: 8
+permalink: /glossary
+---
+
 # Glossary
 
 This glossary gives the service-specific meaning of common identity and authorization terms.
