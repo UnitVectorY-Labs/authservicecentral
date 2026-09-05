@@ -187,8 +187,8 @@ Usage:
   authservicecentral help <command>
 
 Commands:
-	ctl        Control a running deployment through its public HTTP API
-	run        Start the HTTP API server (api is an alias)
+  ctl        Control a running deployment through its public HTTP API
+  run        Start the HTTP API server (api is an alias)
   migrate    Apply database migrations and activate the OpenFGA model
   bootstrap  Create the initial resource-scoped management grant
   validate   Validate authorization YAML without changing external state
@@ -203,9 +203,9 @@ Help:
   authservicecentral help migrate
 
 The run, api, migrate, bootstrap, validate, model, and doctor commands accept
-the shared process flags. config-docs has its own YAML and output flags. Each
-command's help lists the matching SERVICEAUTH_* environment variable and
-fallback value; a supplied flag overrides its environment value.`)
+the shared process flags. config-docs has its own YAML and output flags. ctl has
+remote-client flags documented by authservicecentral help ctl. Each command's
+help lists the matching environment variables and fallback values.`)
 }
 
 // HelpFor returns detailed help for a command or the top-level command list.
@@ -215,6 +215,9 @@ func HelpFor(command string) (string, error) {
 	}
 	if command == "api" {
 		command = "run"
+	}
+	if command == "ctl" {
+		return ctlUsage(), nil
 	}
 
 	help, ok := commandHelps[command]
