@@ -41,6 +41,9 @@ func dispatch(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, cmd.Usage())
 		return 1
 	}
+	if args[0] == "ctl" {
+		return cmd.CTL(args[1:], os.Stdin, stdout, stderr)
+	}
 
 	request, handled, parseErr := cmd.ParseHelp(args)
 	if parseErr != nil {

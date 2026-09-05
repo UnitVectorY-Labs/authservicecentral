@@ -187,7 +187,8 @@ Usage:
   authservicecentral help <command>
 
 Commands:
-  run        Start the HTTP API server (api is an alias)
+	ctl        Control a running deployment through its public HTTP API
+	run        Start the HTTP API server (api is an alias)
   migrate    Apply database migrations and activate the OpenFGA model
   bootstrap  Create the initial resource-scoped management grant
   validate   Validate authorization YAML without changing external state
