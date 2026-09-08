@@ -8,13 +8,15 @@ authservicecentral is a self-contained Go authorization and OAuth 2.0 token-exch
 - PostgreSQL stores runtime catalog data, audit records, and reconciliation state. OpenFGA is an internal authorization engine, not the public API contract.
 - `run` starts the service; startup verifies the active configuration/model and never performs an implicit migration.
 - Management APIs live below `/v1/manage/` and are protected by audience-scoped platform tokens and route permissions. Bootstrap is an explicit, auditable CLI operation.
+- Remote command-line API clients live below `authservicecentral ctl`. They call the public HTTP API even when targeting a local service; they must not bypass it through database, service, or embedded OpenFGA packages.
+- The `ctl` command tree and its documentation must stay synchronized with the HTTP API and `openapi.yaml`. Add, change, or remove the corresponding `ctl` behavior and page under `docs/ctl/` whenever a supported API operation changes.
 - External resources are embedded with Go `embed`; avoid runtime file dependencies where an embedded resource is appropriate.
 - Prefer the Go standard library and small, well-justified dependencies. Keep browser behavior simple with server-rendered HTML and HTMX where interactivity is needed.
 
 ## Working practice
 
 - Read the relevant document in `docs/` before changing behavior, and update documentation in the same change.
-- Keep `README.md` high-level. Put command and process-setting details in `docs/USAGE.md`, YAML details in `docs/CONFIG.md`, API contract details in `docs/API.md` and `openapi.yaml`, and architectural rationale in `docs/ARCHITECTURE.md`.
+- Keep `README.md` high-level. Put local command and process-setting details in `docs/USAGE.md`, remote CLI conventions in `docs/CTL.md` and `docs/ctl/`, YAML details in `docs/CONFIG.md`, API contract details in `docs/API.md` and `openapi.yaml`, and architectural rationale in `docs/ARCHITECTURE.md`.
 - Treat configuration and authorization changes as security-sensitive. Preserve strict validation, fail-closed startup, resource-scoped grants, auditability, and idempotent reconciliation.
 - Verify changes with focused tests plus the repository’s complete Go test/build checks. Integration verification requires a disposable PostgreSQL-compatible environment; browser changes should include Playwright coverage when applicable.
 - Preserve existing user changes in a dirty worktree and keep edits within the requested scope.

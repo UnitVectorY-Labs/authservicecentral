@@ -1,7 +1,7 @@
 ---
 layout: default
-title: YAML configuration reference
-nav_order: 4
+title: Configuration
+nav_order: 5
 permalink: /config
 ---
 

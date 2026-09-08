@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Architecture
-nav_order: 6
+nav_order: 7
 permalink: /architecture
 ---
 
@@ -9,7 +9,7 @@ permalink: /architecture
 
 authservicecentral is a single-deployment authorization universe. One process owns the trust configuration, token exchange, runtime resource catalog, and permission checks for that deployment. PostgreSQL provides durable catalog and reconciliation state; an embedded OpenFGA engine evaluates the configured authorization model.
 
-This document preserves the design decisions that are important when operating, extending, or integrating with the service. The normative command and API details live in [USAGE.md](USAGE.md), [API.md](API.md), and [CONFIG.md](CONFIG.md).
+This document preserves the design decisions that are important when operating, extending, or integrating with the service. The normative command and API details live in [USAGE.md](USAGE.md), [CTL.md](CTL.md), [API.md](API.md), and [CONFIG.md](CONFIG.md).
 
 ## Design goals
 
@@ -100,6 +100,8 @@ The API separates application authorization from control-plane mutations:
 Management operations require a platform JWT whose audience is the configured management audience and whose audience-level permissions include the route’s required management permission. The standard requirements are `management.<family>.read` and `management.<family>.write`. YAML may replace those requirements per family under `management.permissions`; the replacement must itself be an audience-applicable permission.
 
 The root Swagger UI and `/openapi.yaml` are optional documentation surfaces controlled by `SERVICEAUTH_SWAGGER_UI` or `--swagger-ui`. They describe the HTTP contract but do not weaken authentication. The UI is disabled in deployments that do not want a browser-facing API reference.
+
+The `authservicecentral ctl` command tree is the bundled human-facing client for the public HTTP contract. It uses the same API, authentication, validation, and authorization paths as every other client, including when it targets localhost. Local lifecycle commands may use internal application components, but `ctl` commands never access PostgreSQL or embedded OpenFGA directly. This boundary keeps command-line behavior representative of real integrations and permits the client and server to evolve as independently versioned peers even though they ship in one executable.
 
 The `config-docs` command is a separate build-time documentation surface. It reads and validates one YAML file, renders a static site for its token sources, permissions, roles, resources, management mappings, and safe full configuration, and writes no runtime or database state. Private key parameters and secret-like values are redacted before output. Generated pages use Go templates and HTMX navigation and can be served by any static file server.
 
