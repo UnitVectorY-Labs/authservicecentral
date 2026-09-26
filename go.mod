@@ -3,7 +3,7 @@ module github.com/UnitVectorY-Labs/authservicecentral
 go 1.27 // GOVERSION
 
 require (
-	cloud.google.com/go/kms v1.33.0
+	cloud.google.com/go/kms v1.34.0
 	github.com/googleapis/gax-go/v2 v2.24.1
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
