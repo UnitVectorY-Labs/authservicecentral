@@ -7,7 +7,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.24.1
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
-	github.com/openfga/openfga v1.20.0
+	github.com/openfga/openfga v1.21.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -57,7 +57,7 @@ require (
 	github.com/natefinch/wrap v0.2.0 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/oklog/ulid/v2 v2.1.2 // indirect
-	github.com/openfga/language/pkg/go v0.3.2-0.20260730144454-83fedf8a4e70 // indirect
+	github.com/openfga/language/pkg/go v0.3.2-0.20260818192608-0d2ad7fb7c40 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pressly/goose/v3 v3.27.3 // indirect
 	github.com/prometheus/client_golang v1.24.1 // indirect
