@@ -6,7 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/v2"
 	"encoding/pem"
 	"fmt"
 	"net/http"
@@ -84,7 +84,7 @@ func (v ExchangeValidator) Validate(ctx context.Context, raw string) (authn.Iden
 func keyProvider(source config.TokenSource, client *http.Client) (authn.KeyProvider, error) {
 	switch {
 	case len(source.Keys.JWKS) > 0:
-		b, err := json.Marshal(source.Keys.JWKS)
+		b, err := json.Marshal(source.Keys.JWKS, json.Deterministic(true))
 		if err != nil {
 			return nil, err
 		}

@@ -6,10 +6,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -130,9 +132,22 @@ func DecodeCompact(token string) (map[string]any, map[string]any, string, []byte
 		if err != nil {
 			return err
 		}
-		dec := json.NewDecoder(strings.NewReader(string(b)))
-		dec.UseNumber()
-		return dec.Decode(dst)
+		var members map[string]jsontext.Value
+		if err := json.Unmarshal(b, &members); err != nil {
+			return err
+		}
+		if members == nil {
+			return errors.New("JWT segment must be an object")
+		}
+		*dst = make(map[string]any, len(members))
+		for key, raw := range members {
+			value, err := decodeClaim(raw)
+			if err != nil {
+				return err
+			}
+			(*dst)[key] = value
+		}
+		return nil
 	}
 	var header, claims map[string]any
 	if err := decodeJSON(parts[0], &header); err != nil {
@@ -233,10 +248,50 @@ func validateTimes(claims map[string]any, now time.Time, skew time.Duration) err
 	return nil
 }
 
+// decodeClaim retains the exact representation of numbers in arbitrary claims.
+func decodeClaim(raw jsontext.Value) (any, error) {
+	switch raw.Kind() {
+	case '{':
+		var members map[string]jsontext.Value
+		if err := json.Unmarshal(raw, &members); err != nil {
+			return nil, err
+		}
+		out := make(map[string]any, len(members))
+		for k, v := range members {
+			x, err := decodeClaim(v)
+			if err != nil {
+				return nil, err
+			}
+			out[k] = x
+		}
+		return out, nil
+	case '[':
+		var members []jsontext.Value
+		if err := json.Unmarshal(raw, &members); err != nil {
+			return nil, err
+		}
+		out := make([]any, len(members))
+		for i, v := range members {
+			x, err := decodeClaim(v)
+			if err != nil {
+				return nil, err
+			}
+			out[i] = x
+		}
+		return out, nil
+	case '0':
+		return raw.Clone(), nil
+	default:
+		var value any
+		err := json.Unmarshal(raw, &value)
+		return value, err
+	}
+}
+
 func numericDate(value any) (int64, bool) {
 	switch n := value.(type) {
-	case json.Number:
-		i, err := n.Int64()
+	case jsontext.Value:
+		i, err := strconv.ParseInt(string(n), 10, 64)
 		return i, err == nil
 	case float64:
 		return int64(n), n == float64(int64(n))

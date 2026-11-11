@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"time"
 
@@ -54,7 +54,7 @@ func Migrate(args []string) error {
 	if err != nil {
 		return err
 	}
-	configuration, _ := json.Marshal(cfg)
+	configuration, _ := json.Marshal(cfg, json.Deterministic(true))
 	v, err := store.PutConfigurationVersion(ctx, databaseVersion(fingerprint, active.ModelID, configuration))
 	if err != nil {
 		return err

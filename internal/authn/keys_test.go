@@ -5,7 +5,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/v2"
 	"io"
 	"math/big"
 	"net/http"
@@ -32,7 +32,7 @@ func TestRemoteKeysDiscoveryCacheAndUnknownKIDRefresh(t *testing.T) {
 		default:
 			return &http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(bytes.NewReader(nil)), Header: make(http.Header)}, nil
 		}
-		encoded, _ := json.Marshal(body)
+		encoded, _ := json.Marshal(body, json.Deterministic(true))
 		header := make(http.Header)
 		header.Set("Cache-Control", "public, max-age=3600")
 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(encoded)), Header: header}, nil
@@ -63,7 +63,7 @@ func TestRemoteKeysDiscoveryCacheAndUnknownKIDRefresh(t *testing.T) {
 
 func TestRemoteDiscoveryRejectsIssuerMismatch(t *testing.T) {
 	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-		encoded, _ := json.Marshal(map[string]any{"issuer": "wrong", "jwks_uri": "https://example.test/keys"})
+		encoded, _ := json.Marshal(map[string]any{"issuer": "wrong", "jwks_uri": "https://example.test/keys"}, json.Deterministic(true))
 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(encoded)), Header: make(http.Header)}, nil
 	})}
 	remote := &RemoteKeys{Issuer: "https://issuer.test", Discovery: true, Client: client}

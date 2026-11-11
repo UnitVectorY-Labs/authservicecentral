@@ -2,7 +2,7 @@ package app
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"net/http"
@@ -64,8 +64,7 @@ func getJSON(ctx context.Context, client *http.Client, url string, dst any) erro
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("GET %s returned %s", url, resp.Status)
 	}
-	dec := json.NewDecoder(io.LimitReader(resp.Body, 1<<20))
-	if err := dec.Decode(dst); err != nil {
+	if err := json.UnmarshalRead(io.LimitReader(resp.Body, 1<<20), dst); err != nil {
 		return fmt.Errorf("decode %s: %w", url, err)
 	}
 	return nil

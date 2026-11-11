@@ -4,7 +4,8 @@
 package compiler
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"sort"
 	"strings"
@@ -152,7 +153,9 @@ func Compile(c *config.Config) (*Model, error) {
 	return model, nil
 }
 
-func (m *Model) JSON() ([]byte, error) { return json.MarshalIndent(m, "", "  ") }
+func (m *Model) JSON() ([]byte, error) {
+	return json.Marshal(m, jsontext.WithIndent("  "), json.Deterministic(true), json.Deterministic(true))
+}
 func (m *Model) Validate() error {
 	if m == nil || m.SchemaVersion != "1.1" {
 		return fmt.Errorf("schema_version must be 1.1")
