@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -178,4 +178,4 @@ func sameJSON(a, b []byte) bool {
 	var x, y any
 	return json.Unmarshal(a, &x) == nil && json.Unmarshal(b, &y) == nil && strings.TrimSpace(string(mustJSON(x))) == strings.TrimSpace(string(mustJSON(y)))
 }
-func mustJSON(v any) []byte { b, _ := json.Marshal(v); return b }
+func mustJSON(v any) []byte { b, _ := json.Marshal(v, json.Deterministic(true)); return b }

@@ -1,10 +1,11 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -425,18 +426,12 @@ func (s *Server) check(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) decode(w http.ResponseWriter, r *http.Request, dst any, optional bool) bool {
 	r.Body = http.MaxBytesReader(w, r.Body, s.options.MaxBodyBytes)
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	err := decoder.Decode(dst)
-	if optional && errors.Is(err, io.EOF) {
+	body, err := io.ReadAll(r.Body)
+	if optional && err == nil && len(bytes.TrimSpace(body)) == 0 {
 		return true
 	}
-	if err != nil {
+	if err != nil || json.Unmarshal(body, dst, json.RejectUnknownMembers(true)) != nil {
 		s.writeError(w, r, Error(http.StatusBadRequest, "invalid_json", "request body must be valid JSON"))
-		return false
-	}
-	if err = decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		s.writeError(w, r, Error(http.StatusBadRequest, "invalid_json", "request body must contain one JSON value"))
 		return false
 	}
 	return true
@@ -480,7 +475,8 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
+	_ = json.MarshalWrite(w, value)
+	_, _ = w.Write([]byte("\n"))
 }
 func hasPermission(values []string, wanted string) bool {
 	for _, value := range values {

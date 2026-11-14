@@ -2,7 +2,7 @@ package compiler
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"testing"
 
 	"github.com/UnitVectorY-Labs/authservicecentral/internal/config"

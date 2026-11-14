@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/json"
+	"encoding/json/v2"
 	"encoding/pem"
 	"reflect"
 	"testing"
@@ -32,7 +32,7 @@ func TestPlatformIssueParseJWKSRotation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw, _ := json.Marshal(jwks)
+	raw, _ := json.Marshal(jwks, json.Deterministic(true))
 	keys, err := authn.NewStaticJWKS(raw)
 	if err != nil {
 		t.Fatal(err)

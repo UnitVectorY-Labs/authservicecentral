@@ -6,10 +6,12 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/UnitVectorY-Labs/authservicecentral/internal/authn"
@@ -171,7 +173,7 @@ func (p *Parser) Parse(ctx context.Context, token, expectedAudience string) (Cla
 	if !ok || now.Add(p.ClockSkew).Before(time.Unix(iat, 0)) {
 		return Claims{}, errors.New("platform JWT has invalid iat")
 	}
-	b, _ := json.Marshal(raw)
+	b, _ := json.Marshal(raw, json.Deterministic(true))
 	var claims Claims
 	if err := json.Unmarshal(b, &claims); err != nil {
 		return Claims{}, err
@@ -213,7 +215,7 @@ func claimsMap(c Claims) map[string]any {
 }
 
 func encodeJSON(value any) (string, error) {
-	b, err := json.Marshal(value)
+	b, err := json.Marshal(value, json.Deterministic(true))
 	if err != nil {
 		return "", err
 	}
@@ -257,9 +259,9 @@ func containsString(values []string, wanted string) bool {
 }
 func numberInt64(value any) (int64, bool) {
 	switch n := value.(type) {
-	case json.Number:
-		i, e := n.Int64()
-		return i, e == nil
+	case jsontext.Value:
+		i, err := strconv.ParseInt(string(n), 10, 64)
+		return i, err == nil
 	case float64:
 		return int64(n), n == float64(int64(n))
 	case int64:

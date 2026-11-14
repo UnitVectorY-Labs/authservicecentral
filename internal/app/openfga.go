@@ -2,7 +2,7 @@ package app
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"strconv"
 
@@ -28,7 +28,7 @@ func (a ActivationStore) LoadActive(ctx context.Context, storeID string) (engine
 }
 
 func (a ActivationStore) SaveActive(ctx context.Context, active engine.Activation) error {
-	configuration, _ := json.Marshal(map[string]string{"openfga_store_id": active.StoreID})
+	configuration, _ := json.Marshal(map[string]string{"openfga_store_id": active.StoreID}, json.Deterministic(true))
 	v, err := a.DB.PutConfigurationVersion(ctx, database.ConfigurationVersion{Fingerprint: active.Fingerprint, OpenFGAModelID: active.ModelID, SchemaVersion: strconv.Itoa(active.SchemaVersion), Configuration: configuration})
 	if err != nil {
 		return err
