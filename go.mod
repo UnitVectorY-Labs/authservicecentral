@@ -3,7 +3,7 @@ module github.com/UnitVectorY-Labs/authservicecentral
 go 1.27 // GOVERSION
 
 require (
-	cloud.google.com/go/kms v1.36.1
+	cloud.google.com/go/kms v1.37.0
 	github.com/googleapis/gax-go/v2 v2.27.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
@@ -19,7 +19,7 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.3.0 // indirect
 	cloud.google.com/go/compute/metadata v0.10.0 // indirect
 	cloud.google.com/go/iam v1.14.0 // indirect
-	cloud.google.com/go/longrunning v1.3.0 // indirect
+	cloud.google.com/go/longrunning v1.5.0 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/IBM/pgxpoolprometheus v1.1.3 // indirect
 	github.com/Masterminds/squirrel v1.5.4 // indirect
