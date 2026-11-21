@@ -4,7 +4,8 @@ package api
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 )
 
@@ -98,7 +99,7 @@ type ResourceRelationships map[string][]ResourceRef
 // UnmarshalJSON accepts the concise one-target form from the design as well
 // as an array for many-cardinality relationships.
 func (relationships *ResourceRelationships) UnmarshalJSON(data []byte) error {
-	var values map[string]json.RawMessage
+	var values map[string]jsontext.Value
 	if err := json.Unmarshal(data, &values); err != nil {
 		return err
 	}

@@ -3,7 +3,7 @@ package cmd
 import (
 	"bytes"
 	"embed"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"flag"
 	"fmt"
@@ -264,7 +264,7 @@ func renderConfigDocs(cfg *config.Config) (map[string][]byte, error) {
 		return nil, err
 	}
 	model := buildConfigDocsModel(cfg, fingerprint)
-	searchJSON, err := json.Marshal(buildConfigDocsSearchIndex(model))
+	searchJSON, err := json.Marshal(buildConfigDocsSearchIndex(model), json.Deterministic(true))
 	if err != nil {
 		return nil, fmt.Errorf("encode configuration documentation search index: %w", err)
 	}
@@ -700,7 +700,7 @@ func matcherValue(m config.Matcher) string {
 }
 
 func jsonValue(value any) string {
-	b, err := json.Marshal(value)
+	b, err := json.Marshal(value, json.Deterministic(true))
 	if err != nil {
 		return fmt.Sprint(value)
 	}

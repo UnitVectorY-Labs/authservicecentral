@@ -9,7 +9,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/v2"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -421,7 +421,10 @@ func externalJWT(t *testing.T, key *rsa.PrivateKey, subject string) string {
 	now := time.Now()
 	header := map[string]any{"alg": "RS256", "typ": "JWT", "kid": kid}
 	claims := map[string]any{"iss": "https://external.test", "sub": subject, "aud": "auth-exchange", "iat": now.Unix(), "exp": now.Add(10 * time.Minute).Unix(), "tenant": "acme", "email": subject + "@example.com"}
-	encoded := func(v any) string { b, _ := json.Marshal(v); return base64.RawURLEncoding.EncodeToString(b) }
+	encoded := func(v any) string {
+		b, _ := json.Marshal(v, json.Deterministic(true))
+		return base64.RawURLEncoding.EncodeToString(b)
+	}
 	input := encoded(header) + "." + encoded(claims)
 	digest := sha256.Sum256([]byte(input))
 	signature, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest[:])

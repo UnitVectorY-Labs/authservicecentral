@@ -4,7 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"flag"
 	"fmt"
@@ -266,12 +267,12 @@ func executeCTL(o *ctlOptions, r ctlRequest) error {
 		return nil
 	}
 	if o.output == "json" {
-		var compact bytes.Buffer
-		if err := json.Compact(&compact, raw); err != nil {
+		compact := jsontext.Value(raw)
+		if err := compact.Compact(); err != nil {
 			return fmt.Errorf("server returned invalid JSON: %w", err)
 		}
-		compact.WriteByte('\n')
-		_, err = o.stdout.Write(compact.Bytes())
+		compact = append(compact, '\n')
+		_, err = o.stdout.Write(compact)
 		return err
 	}
 	return writeCTLTable(o.stdout, r.result, raw)
@@ -280,7 +281,7 @@ func executeCTL(o *ctlOptions, r ctlRequest) error {
 func jsonRequest(method, p string, body any, result string) ctlRequest {
 	var raw []byte
 	if body != nil {
-		raw, _ = json.Marshal(body)
+		raw, _ = json.Marshal(body, json.Deterministic(true))
 	}
 	content := ""
 	if raw != nil {
@@ -349,7 +350,7 @@ func writeCTLTable(out io.Writer, kind string, raw []byte) error {
 		if err := json.Unmarshal(raw, &x); err != nil {
 			return err
 		}
-		metadata, _ := json.Marshal(x.Metadata)
+		metadata, _ := json.Marshal(x.Metadata, json.Deterministic(true))
 		fmt.Fprintln(w, "TYPE\tID\tMETADATA")
 		fmt.Fprintf(w, "%s\t%s\t%s\n", x.Type, x.ID, string(metadata))
 		if len(x.Relationships) > 0 {
@@ -875,19 +876,7 @@ func jsonObject(raw, label string) (map[string]any, error) {
 	return value, nil
 }
 func decodeExactJSON(raw string, dst any) error {
-	decoder := json.NewDecoder(strings.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(dst); err != nil {
-		return err
-	}
-	var extra any
-	if err := decoder.Decode(&extra); err != io.EOF {
-		if err == nil {
-			return errors.New("multiple JSON values")
-		}
-		return err
-	}
-	return nil
+	return json.Unmarshal([]byte(raw), dst, json.RejectUnknownMembers(true))
 }
 func ttlSeconds(value string) (int64, error) {
 	duration, err := time.ParseDuration(value)

@@ -4,7 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"net/http"
@@ -76,7 +77,7 @@ func (b *Backend) JWKS(ctx context.Context) (map[string]any, error) { return b.I
 func (b *Backend) Exchange(ctx context.Context, in api.TokenExchangeRequest) (api.TokenExchangeResponse, error) {
 	out, claims, err := b.Exchanger.Exchange(ctx, token.ExchangeRequest{GrantType: in.GrantType, SubjectToken: in.SubjectToken, SubjectTokenType: in.SubjectTokenType, ActorToken: in.ActorToken, ActorTokenType: in.ActorTokenType, Audience: in.Audience})
 	if err != nil {
-		_, _ = b.DB.AppendAuditEvent(ctx, database.AuditEvent{RequestID: stringPtr(api.RequestIDFromContext(ctx)), Operation: "token.exchange", Target: in.Audience, Result: "failure", Details: json.RawMessage(`{"category":"invalid_request"}`)})
+		_, _ = b.DB.AppendAuditEvent(ctx, database.AuditEvent{RequestID: stringPtr(api.RequestIDFromContext(ctx)), Operation: "token.exchange", Target: in.Audience, Result: "failure", Details: jsontext.Value(`{"category":"invalid_request"}`)})
 		return api.TokenExchangeResponse{}, api.Error(http.StatusBadRequest, "invalid_request", err.Error())
 	}
 	actor := claims.Subject
@@ -87,7 +88,7 @@ func (b *Backend) Exchange(ctx context.Context, in api.TokenExchangeRequest) (ap
 }
 
 func (b *Backend) AuditAuthenticationFailure(ctx context.Context, requestID, category string) {
-	_, _ = b.DB.AppendAuditEvent(ctx, database.AuditEvent{RequestID: stringPtr(requestID), Operation: "management.authentication", Target: "management-api", Result: "failure", Details: json.RawMessage(fmt.Sprintf(`{"category":%q}`, category))})
+	_, _ = b.DB.AppendAuditEvent(ctx, database.AuditEvent{RequestID: stringPtr(requestID), Operation: "management.authentication", Target: "management-api", Result: "failure", Details: jsontext.Value(fmt.Sprintf(`{"category":%q}`, category))})
 }
 func (b *Backend) Ready(ctx context.Context) error { return b.ReadyState.Check(ctx) }
 
@@ -149,7 +150,7 @@ func (b *Backend) DeleteAudience(ctx context.Context, id api.Identity, audienceI
 }
 
 func (b *Backend) CreateResource(ctx context.Context, id api.Identity, in api.Resource) (api.Resource, error) {
-	metadata, _ := json.Marshal(in.Metadata)
+	metadata, _ := json.Marshal(in.Metadata, json.Deterministic(true))
 	relationships := make(map[string][]database.ResourceRef, len(in.Relationships))
 	for name, targets := range in.Relationships {
 		for _, target := range targets {
@@ -173,7 +174,7 @@ func (b *Backend) GetResource(ctx context.Context, _ api.Identity, ref api.Resou
 	return b.resourceAPI(ctx, v)
 }
 func (b *Backend) PatchResource(ctx context.Context, id api.Identity, ref api.ResourceRef, patch api.ResourcePatch) (api.Resource, error) {
-	metadata, err := json.Marshal(patch.Metadata)
+	metadata, err := json.Marshal(patch.Metadata, json.Deterministic(true))
 	if err != nil {
 		return api.Resource{}, api.Error(http.StatusBadRequest, "invalid_metadata", "metadata is invalid")
 	}

@@ -10,7 +10,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/v2"
 	"encoding/pem"
 	"testing"
 	"time"
@@ -139,7 +139,7 @@ func signEC(t *testing.T, key *ecdsa.PrivateKey, kid string, claims map[string]a
 func segments(t *testing.T, header, claims map[string]any) string {
 	t.Helper()
 	encode := func(v any) string {
-		b, e := json.Marshal(v)
+		b, e := json.Marshal(v, json.Deterministic(true))
 		if e != nil {
 			t.Fatal(e)
 		}

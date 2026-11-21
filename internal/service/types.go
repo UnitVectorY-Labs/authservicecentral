@@ -4,7 +4,7 @@ package service
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
 
 	"github.com/UnitVectorY-Labs/authservicecentral/internal/database"
 )
@@ -43,7 +43,7 @@ type RelationshipRequest struct {
 type CreateGrantRequest struct {
 	Grant                   database.Grant
 	CreateResourceIfMissing bool
-	ResourceMetadata        json.RawMessage
+	ResourceMetadata        jsontext.Value
 }
 
 type PermissionCheck struct {
