@@ -1,8 +1,8 @@
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT) [![Active](https://img.shields.io/badge/Status-Active-green)](https://guide.unitvectorylabs.com/bestpractices/status/#active) 
+
 # authservicecentral
 
-`authservicecentral` is a single-deployment authorization and OAuth 2.0 token-exchange service for human and workload identities. It exchanges JWTs from explicitly trusted issuers for short-lived, audience-scoped platform JWTs and evaluates resource permissions through an embedded OpenFGA engine.
-
-Authorization is deployment-configured: YAML declares trusted token sources, permissions, roles, resource types, relationships, and inheritance. Runtime APIs manage audiences, resource instances, groups, memberships, and resource-scoped grants. PostgreSQL stores the application catalog, audit/outbox state, and OpenFGA data.
+Centralized OAuth 2.0 authorization for service-to-service JWT access tokens, with explicit audience and scope-based access control.
 
 The service is intentionally batch-first and permission-centric. Applications check capabilities such as `document.read`; they do not duplicate role or hierarchy logic.
 

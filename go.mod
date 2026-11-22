@@ -1,6 +1,6 @@
 module github.com/UnitVectorY-Labs/authservicecentral
 
-go 1.27 // GOVERSION
+go 1.27.0 // GOVERSION
 
 require (
 	cloud.google.com/go/kms v1.37.0
