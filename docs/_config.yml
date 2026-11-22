@@ -1,7 +1,7 @@
 title: authservicecentral
 description: "Centralized OAuth 2.0 authorization for service-to-service JWT access tokens, with explicit audience and scope-based access control."
 
-remote_theme: just-the-docs/just-the-docs@v0.12.0
+remote_theme: UnitVectorY-Labs/uvy-docs-theme@v0.2.0
 plugins:
   - jekyll-remote-theme
 
@@ -24,7 +24,7 @@ callouts:
 mermaid:
   # Version of mermaid library
   # Pick an available version from https://cdn.jsdelivr.net/npm/mermaid/
-  version: "11.16.1" # MERMAIDVERSION
+  version: "12.3.0" # MERMAIDVERSION
 
 # External navigation links
 nav_external_links:
