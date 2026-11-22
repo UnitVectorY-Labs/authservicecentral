@@ -5,7 +5,7 @@ go 1.27.0 // GOVERSION
 require (
 	cloud.google.com/go/kms v1.37.0
 	github.com/googleapis/gax-go/v2 v2.27.0
-	github.com/jackc/pgx/v5 v5.12.0
+	github.com/jackc/pgx/v5 v5.13.0
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
 	github.com/openfga/openfga v1.22.1
 	google.golang.org/protobuf v1.36.12
