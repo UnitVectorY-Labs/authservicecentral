@@ -1,9 +1,13 @@
 title: authservicecentral
 description: "Centralized OAuth 2.0 authorization for service-to-service JWT access tokens, with explicit audience and scope-based access control."
 
-remote_theme: UnitVectorY-Labs/uvy-docs-theme@v0.2.0
+remote_theme: UnitVectorY-Labs/uvy-docs-theme@v0.4.0
 plugins:
   - jekyll-remote-theme
+
+uvy_docs:
+  license: "MIT License"
+  license_url: "https://github.com/UnitVectorY-Labs/authservicecentral/blob/main/LICENSE"
 
 callouts:
   highlight:
