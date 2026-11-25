@@ -89,6 +89,21 @@ func TestManagementPermissionOverridesAreValidatedAndExposed(t *testing.T) {
 	}
 }
 
+func TestFingerprintCompatibility(t *testing.T) {
+	c, err := Parse([]byte(validYAML))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := c.Fingerprint()
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "9546ecb8d64c111560124b21b57193b4d0429b42015542d107a031ee73b50736"
+	if got != want {
+		t.Fatalf("fingerprint = %s, want %s", got, want)
+	}
+}
+
 func TestFingerprintIsIndependentOfMapAndYAMLOrdering(t *testing.T) {
 	a, err := Parse([]byte(validYAML))
 	if err != nil {

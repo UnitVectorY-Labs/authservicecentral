@@ -9,7 +9,7 @@ permalink: /config
 
 This document describes the deployment authorization YAML only. Process flags and `SERVICEAUTH_*` environment variables belong in [USAGE.md](USAGE.md). Runtime catalog objects such as audiences, resources, groups, and grants belong in [API.md](API.md).
 
-The file is one strict YAML document with `version: 1`. Unknown fields, duplicate keys, and multiple YAML documents are rejected. The validated document is canonicalized and fingerprinted; that fingerprint is tied to the active OpenFGA model during `migrate` and must match during `run`.
+The file is one strict YAML document with `version: 1`. Unknown fields, duplicate keys, and multiple YAML documents are rejected. The validated document is canonicalized and fingerprinted; that fingerprint is tied to the active OpenFGA model during `migrate` and must match during `run`. Fingerprints use the original Go `encoding/json` serialization for compatibility with existing activations.
 
 ## Top-level shape
 
