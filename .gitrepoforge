@@ -10,8 +10,6 @@ config:
   status: active
   justfile: true
   osv: sarif
-  codecov:
-    enabled: true
   docs:
     enabled: true
     domain: authservicecentral.unitvectorylabs.com
