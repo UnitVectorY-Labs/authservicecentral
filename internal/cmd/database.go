@@ -1,11 +1,11 @@
 package cmd
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
 
 	"github.com/UnitVectorY-Labs/authservicecentral/internal/database"
 )
 
-func databaseVersion(fingerprint, modelID string, configuration json.RawMessage) database.ConfigurationVersion {
+func databaseVersion(fingerprint, modelID string, configuration jsontext.Value) database.ConfigurationVersion {
 	return database.ConfigurationVersion{Fingerprint: fingerprint, OpenFGAModelID: modelID, SchemaVersion: "1", Configuration: configuration}
 }

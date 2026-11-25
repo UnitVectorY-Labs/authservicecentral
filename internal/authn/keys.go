@@ -8,7 +8,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/v2"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -306,8 +306,7 @@ func getJSON(ctx context.Context, client *http.Client, uri string, dst any) (*ht
 		io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 		return nil, fmt.Errorf("HTTP status %d", resp.StatusCode)
 	}
-	dec := json.NewDecoder(io.LimitReader(resp.Body, 4<<20))
-	if err := dec.Decode(dst); err != nil {
+	if err := json.UnmarshalRead(io.LimitReader(resp.Body, 4<<20), dst); err != nil {
 		return nil, err
 	}
 	return resp, nil

@@ -4,7 +4,7 @@
 package database
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"time"
 )
@@ -27,7 +27,7 @@ type ConfigurationVersion struct {
 	Fingerprint    string
 	OpenFGAModelID string
 	SchemaVersion  string
-	Configuration  json.RawMessage
+	Configuration  jsontext.Value
 	IsActive       bool
 	CreatedAt      time.Time
 	ActivatedAt    *time.Time
@@ -49,7 +49,7 @@ type ResourceRef struct {
 
 type Resource struct {
 	ResourceRef
-	Metadata  json.RawMessage
+	Metadata  jsontext.Value
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -73,7 +73,7 @@ type Relationship struct {
 type Group struct {
 	ID          string
 	DisplayName string
-	Metadata    json.RawMessage
+	Metadata    jsontext.Value
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -146,9 +146,9 @@ type AuditEvent struct {
 	Operation      string
 	Target         string
 	Result         string
-	PreviousValue  json.RawMessage
-	NewValue       json.RawMessage
-	Details        json.RawMessage
+	PreviousValue  jsontext.Value
+	NewValue       jsontext.Value
+	Details        jsontext.Value
 }
 
 type AuditFilter struct {

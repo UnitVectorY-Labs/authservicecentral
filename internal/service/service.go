@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"slices"
@@ -307,8 +307,8 @@ func membershipTuple(groupID string, member database.Subject) (database.Authoriz
 
 func (s *Service) audit(ctx context.Context, mutation Mutation, operation, target, result string, before, after any) error {
 	requestID, actor := nullableString(mutation.RequestID), nullableString(mutation.Actor)
-	previous, _ := json.Marshal(before)
-	next, _ := json.Marshal(after)
+	previous, _ := json.Marshal(before, json.Deterministic(true))
+	next, _ := json.Marshal(after, json.Deterministic(true))
 	_, err := s.db.AppendAuditEvent(ctx, database.AuditEvent{RequestID: requestID, ActorPrincipal: actor, Operation: operation, Target: target, Result: result, PreviousValue: nullValue(previous, before), NewValue: nullValue(next, after)})
 	return err
 }

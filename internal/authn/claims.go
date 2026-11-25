@@ -1,7 +1,7 @@
 package authn
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"reflect"
@@ -94,8 +94,8 @@ func matchClaims(claims map[string]any, rules map[string]ClaimRule) error {
 
 func equalJSON(a, b any) bool {
 	// Normalize numbers and map types in configuration adapters consistently.
-	ab, aerr := json.Marshal(a)
-	bb, berr := json.Marshal(b)
+	ab, aerr := json.Marshal(a, json.Deterministic(true))
+	bb, berr := json.Marshal(b, json.Deterministic(true))
 	return aerr == nil && berr == nil && reflect.DeepEqual(ab, bb)
 }
 

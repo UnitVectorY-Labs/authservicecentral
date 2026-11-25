@@ -197,3 +197,5 @@ The subject may instead be a group. `id` is optional and generated when absent. 
 Successful management mutations are committed to PostgreSQL, reconciled synchronously to embedded OpenFGA, and recorded in the audit log before success is returned. A background reconciler retries interrupted outbox work. Deleting catalog objects removes associated grants and relationship tuples. Platform tokens retain audience-level permissions until expiry, while `/v1/check` evaluates current resource state.
 
 The API never exposes the private signing key or the complete YAML configuration. The repository’s configuration reference is [CONFIG.md](CONFIG.md); the runtime documentation surface at `/` is API-only.
+
+JSON parsing rejects duplicate object names and invalid UTF-8. Field names are case-sensitive. JSON v2 output encodes nil slices and maps as empty arrays and objects, and `omitempty` omits fields whose JSON representation is null, an empty string, an empty object, or an empty array; false and zero values are retained.

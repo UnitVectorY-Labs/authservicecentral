@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"net/url"
@@ -174,7 +174,7 @@ func (c *Config) Fingerprint() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	b, err := json.Marshal(canonical)
+	b, err := json.Marshal(canonical, json.Deterministic(true))
 	if err != nil {
 		return "", fmt.Errorf("canonicalize configuration: %w", err)
 	}
@@ -331,7 +331,7 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) canonicalCopy() (*Config, error) {
-	b, err := json.Marshal(c)
+	b, err := json.Marshal(c, json.Deterministic(true))
 	if err != nil {
 		return nil, fmt.Errorf("canonicalize configuration: %w", err)
 	}
@@ -380,13 +380,13 @@ func (c *Config) canonicalCopy() (*Config, error) {
 
 func sortMatcher(m *Matcher) {
 	sort.Slice(m.OneOf, func(i, j int) bool {
-		a, _ := json.Marshal(m.OneOf[i])
-		b, _ := json.Marshal(m.OneOf[j])
+		a, _ := json.Marshal(m.OneOf[i], json.Deterministic(true))
+		b, _ := json.Marshal(m.OneOf[j], json.Deterministic(true))
 		return string(a) < string(b)
 	})
 	sort.Slice(m.AnyOf, func(i, j int) bool {
-		a, _ := json.Marshal(m.AnyOf[i])
-		b, _ := json.Marshal(m.AnyOf[j])
+		a, _ := json.Marshal(m.AnyOf[i], json.Deterministic(true))
+		b, _ := json.Marshal(m.AnyOf[j], json.Deterministic(true))
 		return string(a) < string(b)
 	})
 }
